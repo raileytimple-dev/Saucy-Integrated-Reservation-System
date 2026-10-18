@@ -1,0 +1,200 @@
+@model Order?
+@{
+    ViewData["Title"] = "Track Orders";
+    var isGuestPreview = (ViewBag.IsGuestPreview as bool?) == true;
+    var status = Model?.Status ?? "";
+    var steps = new[] { "Pending", "Confirmed", "Preparing", "Ready", "Completed" };
+    var idx = Array.IndexOf(steps, status);
+}
+
+@if (isGuestPreview)
+{
+    <section class="guest-feature-page track-preview-page">
+        <div class="container-xl guest-feature-grid">
+            <div class="guest-feature-copy">
+                <span class="eyebrow">Live order progress</span>
+                <h1>Know when your food is ready.</h1>
+                <p>Track your latest order from kitchen confirmation through preparation and pickup. Your personal order information appears here after you sign in.</p>
+                <div class="guest-feature-actions">
+                    <a class="btn btn-warning btn-lg fw-semibold" asp-controller="Account" asp-action="Login" asp-route-returnUrl="/Orders/Track">Log in to track</a>
+                    <a class="btn btn-outline-dark btn-lg" asp-controller="Menu" asp-action="Index">Browse menu</a>
+                </div>
+            </div>
+            <div class="preview-window order-preview-card" aria-label="Order tracking preview">
+                <div class="preview-window-bar"><span></span><span></span><span></span><small>Order tracking preview</small></div>
+                <div class="preview-window-body">
+                    <div class="preview-order-heading"><div><small>ORDER #1042</small><h2>Preparing</h2></div><span class="preview-status">In progress</span></div>
+                    <div class="preview-track-steps">
+                        <div class="done"><span><i class="bi bi-check-lg"></i></span><small>Confirmed</small></div>
+                        <div class="done"><span><i class="bi bi-fire"></i></span><small>Preparing</small></div>
+                        <div><span><i class="bi bi-bag-check"></i></span><small>Ready</small></div>
+                        <div><span><i class="bi bi-emoji-smile"></i></span><small>Completed</small></div>
+                    </div>
+                    <div class="preview-order-line"><span>1 × Pork Bacon Ribs</span><strong>&#8369;110.00</strong></div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <div class="track-wrap px-3">
+        <h2 class="text-center fw-bold mb-4">Track Your Order</h2>
+        @if (Model == null)
+        {
+            <div class="track-card text-center">
+                <i class="bi bi-bag-x fs-1"></i>
+                <h3 class="mt-3">No Active Order Found</h3>
+                <p class="text-muted">You do not currently have an order in progress.</p>
+                <p class="track-empty-live"><i></i> Watching for a new order</p>
+                <a asp-controller="Menu" asp-action="Index" class="btn btn-warning">Place New Order</a>
+                <a asp-action="History" class="btn btn-dark ms-2">View Order History</a>
+            </div>
+        }
+        else
+        {
+            <div class="track-card" id="liveOrderCard" data-order-id="@Model.Id" data-current-status="@Model.Status">
+                <div class="track-live-bar" aria-live="polite">
+                    <span><i></i><strong id="liveConnectionText">Live updates active</strong></span>
+                    <small id="liveUpdatedText">Checking every 2 seconds</small>
+                </div>
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <div><small class="text-muted">ORDER #@Model.Id</small><h3 id="currentStatusText">@Model.Status</h3></div>
+                    <div class="text-end"><small>@Model.OrderedAt.ToString("MMM d, yyyy")</small><div>&#8369;@Model.TotalAmount.ToString("0.00")</div></div>
+                </div>
+                <div class="track-steps" id="liveTrackSteps">
+                    @for (var i = 0; i < steps.Length; i++)
+                    {
+                        <div data-status="@steps[i]" class="track-step @((i <= idx || status == "Completed") ? "active" : "")"><div class="dot">@(i + 1)</div><div>@steps[i]</div></div>
+                    }
+                </div>
+                @if (Model.OrderType == "Dine-in" && Model.Reservation?.DiningTable != null)
+                {
+                    <div class="track-table-summary"><i class="bi bi-grid-3x3-gap-fill"></i><span><small>@(Model.Reservation.Status == "Confirmed" ? "YOUR CONFIRMED TABLE" : "TABLE REQUEST")</small><strong>@Model.Reservation.DiningTable.TableNumber · @Model.Reservation.DiningTable.Capacity-seat capacity</strong></span><span>Party of @Model.Reservation.GuestCount · @Model.Reservation.Status</span></div>
+                }
+                <h4>Order Summary</h4>
+                @foreach (var item in Model.Items)
+                {
+                    <div class="d-flex justify-content-between border-bottom py-2"><span>@item.Quantity × @item.MenuItem?.Name @if(item.Sauce1Name != null){<small class="order-line-sauces"><i class="bi bi-droplet-fill"></i> @item.Sauce1Name + @item.Sauce2Name</small>}</span><span>&#8369;@((item.Quantity * item.UnitPrice).ToString("0.00"))</span></div>
+                }
+                <details class="customer-order-timeline" id="liveOrderTimeline" open style="@(Model.StatusHistory.Any() ? "" : "display:none")">
+                    <summary><i class="bi bi-clock-history"></i> Order activity</summary>
+                    <ol id="liveOrderTimelineList">
+                        @foreach (var entry in Model.StatusHistory.OrderByDescending(entry => entry.ChangedAt))
+                        {
+                            <li><span></span><div><strong>@entry.Action@if (entry.FromStatus != entry.ToStatus) { <text>: @entry.ToStatus</text> }</strong><small>@entry.ChangedAt.ToString("MMM d, h:mm tt") · @(entry.ChangedByRole == "Customer" ? "You" : $"Saucy {entry.ChangedByRole.ToLowerInvariant()}")</small></div></li>
+                        }
+                    </ol>
+                </details>
+                <div class="mt-4"><a asp-controller="Home" asp-action="Index" class="btn btn-outline-dark">Back to Home</a></div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    @if (!isGuestPreview)
+    {
+        <script>
+            (() => {
+                const card = document.getElementById('liveOrderCard');
+                const orderId = card?.dataset.orderId ?? '';
+                const endpoint = orderId
+                    ? '@Url.Action("LiveStatus", "Orders")' + `?id=${encodeURIComponent(orderId)}`
+                    : '@Url.Action("LiveStatus", "Orders")';
+                const statusText = document.getElementById('currentStatusText');
+                const connectionText = document.getElementById('liveConnectionText');
+                const updatedText = document.getElementById('liveUpdatedText');
+                const timeline = document.getElementById('liveOrderTimeline');
+                const timelineList = document.getElementById('liveOrderTimelineList');
+                const statusOrder = ['Pending', 'Confirmed', 'Preparing', 'Ready', 'Completed'];
+                let fingerprint = card ? `${card.dataset.currentStatus}:initial` : 'empty';
+                let stopped = false;
+                let pollTimer;
+
+                function formatTime(value) {
+                    return new Intl.DateTimeFormat('en-PH', {
+                        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                    }).format(new Date(value));
+                }
+
+                function renderTimeline(entries) {
+                    if (!timeline || !timelineList) return;
+                    timeline.style.display = entries.length ? '' : 'none';
+                    const nodes = entries.map(entry => {
+                        const item = document.createElement('li');
+                        const dot = document.createElement('span');
+                        const body = document.createElement('div');
+                        const title = document.createElement('strong');
+                        const meta = document.createElement('small');
+                        title.textContent = entry.fromStatus !== entry.toStatus ? `${entry.action}: ${entry.toStatus}` : entry.action;
+                        meta.textContent = `${formatTime(entry.changedAt)} · ${entry.actor}`;
+                        body.append(title, meta);
+                        item.append(dot, body);
+                        return item;
+                    });
+                    timelineList.replaceChildren(...nodes);
+                }
+
+                function renderStatus(result) {
+                    if (!card || !statusText) return;
+                    const previous = card.dataset.currentStatus;
+                    card.dataset.currentStatus = result.status;
+                    statusText.textContent = result.status;
+                    card.classList.toggle('is-cancelled', result.status === 'Cancelled');
+                    const currentIndex = statusOrder.indexOf(result.status);
+                    document.querySelectorAll('#liveTrackSteps .track-step').forEach((step, index) => {
+                        step.classList.toggle('active', result.status === 'Completed' || (currentIndex >= 0 && index <= currentIndex));
+                    });
+                    renderTimeline(result.history ?? []);
+                    if (previous !== result.status) {
+                        card.classList.remove('track-card-updated');
+                        void card.offsetWidth;
+                        card.classList.add('track-card-updated');
+                    }
+                }
+
+                async function poll() {
+                    window.clearTimeout(pollTimer);
+                    if (stopped) return;
+                    try {
+                        const response = await fetch(endpoint, { cache: 'no-store', headers: { 'Accept': 'application/json' } });
+                        if (response.status === 401) {
+                            window.location.href = '@Url.Action("Login", "Account", new { returnUrl = "/Orders/Track" })';
+                            return;
+                        }
+                        if (!response.ok) throw new Error('Status request failed.');
+                        const result = await response.json();
+                        if (!result.found) {
+                            if (connectionText) connectionText.textContent = 'Waiting for an active order';
+                        } else if (!card) {
+                            window.location.reload();
+                            return;
+                        } else {
+                            const nextFingerprint = `${result.status}:${result.changedAt}:${result.history?.length ?? 0}`;
+                            if (nextFingerprint !== fingerprint) {
+                                renderStatus(result);
+                                fingerprint = nextFingerprint;
+                            }
+                            if (connectionText) connectionText.textContent = 'Live updates active';
+                            if (updatedText) updatedText.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
+                            if (['Completed', 'Cancelled'].includes(result.status)) {
+                                stopped = true;
+                                if (connectionText) connectionText.textContent = result.status === 'Completed' ? 'Order completed' : 'Order cancelled';
+                                return;
+                            }
+                        }
+                    } catch {
+                        if (connectionText) connectionText.textContent = 'Reconnecting…';
+                    }
+                    pollTimer = window.setTimeout(poll, document.hidden ? 5000 : 2000);
+                }
+
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden && !stopped) poll();
+                });
+                pollTimer = window.setTimeout(poll, 700);
+            })();
+        </script>
+    }
+}

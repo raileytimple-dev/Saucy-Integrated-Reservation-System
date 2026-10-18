@@ -1,0 +1,166 @@
+@model IEnumerable<SaucyMVC.Services.CartLine>
+@{
+    ViewData["Title"] = "Your Cart";
+    var items = Model.ToList();
+    var total = items.Sum(x => x.LineTotal);
+    var itemCount = items.Sum(x => x.Quantity);
+    var confirmedReservations = ViewBag.ConfirmedReservations as IEnumerable<Reservation> ?? Enumerable.Empty<Reservation>();
+    var pendingReservations = ViewBag.PendingReservations as IEnumerable<Reservation> ?? Enumerable.Empty<Reservation>();
+    var hasConfirmedReservation = confirmedReservations.Any();
+}
+
+<section class="cart-page section-pad">
+    <div class="container-xl">
+        <nav class="checkout-progress" aria-label="Checkout progress">
+            <span class="current"><em>1</em><b>Cart</b><small>Review your food</small></span>
+            <i class="bi bi-chevron-right"></i>
+            <span><em>2</em><b>Reservation</b><small>Dine-in only</small></span>
+            <i class="bi bi-chevron-right"></i>
+            <span><em>3</em><b>Payment</b><small>Cash or QR Pay</small></span>
+        </nav>
+
+        <header class="cart-page-heading">
+            <div><span class="eyebrow">Your Saucy order</span><h1>Review your cart</h1><p>@itemCount item@(itemCount == 1 ? "" : "s") ready for checkout</p></div>
+            <a asp-controller="Menu" asp-action="Index" class="btn btn-outline-dark"><i class="bi bi-plus-lg"></i> Add more food</a>
+        </header>
+
+        @if (!items.Any())
+        {
+            <div class="cart-empty-state">
+                <span><i class="bi bi-basket2"></i></span>
+                <h2>Your cart is waiting</h2>
+                <p>Explore Saucy favorites and add something delicious.</p>
+                <a asp-controller="Menu" asp-action="Index" class="btn btn-warning btn-lg fw-semibold">Browse the menu</a>
+            </div>
+        }
+        else
+        {
+            <div class="cart-checkout-grid">
+                <div class="cart-items-panel">
+                    <div class="cart-section-title"><h2>Your selections</h2><span>@itemCount total</span></div>
+                    <div class="cart-item-list">
+                        @foreach (var item in items)
+                        {
+                            <article class="cart-item-card">
+                                <img src="@(item.ImagePath ?? "/legacy/Images/Icon.png")" alt="@item.Name" />
+                                <div class="cart-item-info">
+                                    <small>SAUCY MENU</small><h3>@item.Name</h3><span>&#8369;@item.Price.ToString("0.00") each</span>
+                                    @if (item.HasSauces)
+                                    {
+                                        <div class="cart-line-sauces"><i class="bi bi-droplet-fill"></i><span>@item.Sauce1</span><b>+</b><span>@item.Sauce2</span></div>
+                                    }
+                                </div>
+                                <form asp-action="Update" method="post" class="quantity-stepper" aria-label="Change quantity for @item.Name">
+                                    <input type="hidden" name="id" value="@item.MenuItemId" />
+                                    <input type="hidden" name="sauce1Id" value="@item.Sauce1Id" />
+                                    <input type="hidden" name="sauce2Id" value="@item.Sauce2Id" />
+                                    <button type="submit" name="quantity" value="@(item.Quantity - 1)" aria-label="Decrease @item.Name quantity"><i class="bi bi-dash-lg"></i></button>
+                                    <strong>@item.Quantity</strong>
+                                    <button type="submit" name="quantity" value="@(item.Quantity + 1)" aria-label="Increase @item.Name quantity"><i class="bi bi-plus-lg"></i></button>
+                                </form>
+                                <strong class="cart-line-total">&#8369;@item.LineTotal.ToString("0.00")</strong>
+                                <form asp-action="Remove" method="post" class="cart-remove-form"><input type="hidden" name="id" value="@item.MenuItemId" /><input type="hidden" name="sauce1Id" value="@item.Sauce1Id" /><input type="hidden" name="sauce2Id" value="@item.Sauce2Id" /><button type="submit" aria-label="Remove @item.Name"><i class="bi bi-trash3"></i><span>Remove</span></button></form>
+                            </article>
+                        }
+                    </div>
+                    <div class="cart-update-help"><i class="bi bi-info-circle"></i> Use the <strong>−</strong> and <strong>+</strong> buttons to update quantities instantly. Setting an item below 1 removes it.</div>
+                </div>
+
+                <aside class="cart-summary-panel">
+                    <div class="cart-section-title"><h2>Order details</h2><i class="bi bi-receipt"></i></div>
+                    <form asp-action="Checkout" method="post" id="checkoutForm">
+                        <fieldset class="order-type-fieldset">
+                            <legend>How would you like your order?</legend>
+                            <div class="order-type-options">
+                                <label><input type="radio" name="orderType" value="Dine-in" checked /><span><i class="bi bi-shop"></i><b>Dine-in</b><small>Choose a table next</small><em><i class="bi bi-check-lg"></i></em></span></label>
+                                <label><input type="radio" name="orderType" value="Takeout" /><span><i class="bi bi-bag-check"></i><b>Takeout</b><small>Go directly to payment</small><em><i class="bi bi-check-lg"></i></em></span></label>
+                            </div>
+                        </fieldset>
+
+                        <div class="cart-reservation-choice" id="reservationChoice">
+                            <span class="cart-choice-label">Table reservation</span>
+                            @if (hasConfirmedReservation)
+                            {
+                                <label class="reservation-choice-row">
+                                    <input type="radio" name="reservationMode" value="existing" checked />
+                                    <span><i class="bi bi-calendar2-check-fill"></i><b>Use my confirmed reservation</b><small>Skip table selection and continue to payment.</small></span>
+                                </label>
+                                <select class="form-select" name="reservationId" id="reservationId">
+                                    @foreach (var reservation in confirmedReservations)
+                                    {
+                                        <option value="@reservation.Id">@reservation.DiningTable?.TableNumber · @reservation.DiningTable?.Capacity seats · @reservation.ReservationDate.ToString("MMM d, h:mm tt")</option>
+                                    }
+                                </select>
+                                <label class="reservation-choice-row mt-2">
+                                    <input type="radio" name="reservationMode" value="new" />
+                                    <span><i class="bi bi-plus-circle"></i><b>Choose a different table</b><small>Create a new reservation request.</small></span>
+                                </label>
+                            }
+                            else
+                            {
+                                <input type="hidden" name="reservationMode" value="new" />
+                                <div class="reservation-choice-empty"><i class="bi bi-calendar-plus"></i><span><b>Choose a table next</b><small>You do not have an unused confirmed reservation.</small></span></div>
+                            }
+                            @if (pendingReservations.Any())
+                            {
+                                <div class="pending-reservation-note"><i class="bi bi-hourglass-split"></i><span>You have @pendingReservations.Count() reservation request@(pendingReservations.Count() == 1 ? "" : "s") waiting for admin confirmation. Confirmed reservations become selectable here.</span></div>
+                            }
+                        </div>
+
+                        <div class="checkout-route-preview" id="checkoutRoutePreview">
+                            <i class="bi bi-calendar2-heart"></i>
+                            <span><small>NEXT STEP</small><strong>Choose an available table</strong><p>Your cart stays safe while you make the reservation.</p></span>
+                        </div>
+
+                        <div class="cart-notes-field"><label for="notes">Order notes <small>Optional</small></label><textarea id="notes" name="notes" rows="3" placeholder="Food allergies or preparation requests"></textarea></div>
+
+                        <div class="cart-total-lines">
+                            <span><small>Subtotal</small><b>&#8369;@total.ToString("0.00")</b></span>
+                            <span><small>Service fee</small><b>&#8369;0.00</b></span>
+                            <span class="grand-total"><strong>Total</strong><strong>&#8369;@total.ToString("0.00")</strong></span>
+                        </div>
+
+                        <button class="cart-checkout-button" type="submit"><span id="checkoutButtonText">Choose a table</span><i class="bi bi-arrow-right"></i></button>
+                        <p class="cart-secure-note"><i class="bi bi-shield-check"></i> Your order is only created after the required checkout details are completed.</p>
+                    </form>
+                </aside>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const choices = document.querySelectorAll('input[name="orderType"]');
+            const route = document.getElementById('checkoutRoutePreview');
+            const button = document.getElementById('checkoutButtonText');
+            const reservationChoice = document.getElementById('reservationChoice');
+            const reservationModes = document.querySelectorAll('input[name="reservationMode"]');
+            const reservationSelect = document.getElementById('reservationId');
+            if (!choices.length || !route || !button) return;
+
+            const sync = () => {
+                const dineIn = document.querySelector('input[name="orderType"]:checked')?.value === 'Dine-in';
+                const useExisting = dineIn && document.querySelector('input[name="reservationMode"]:checked')?.value === 'existing';
+                reservationChoice.hidden = !dineIn;
+                if (reservationSelect) {
+                    reservationSelect.disabled = !useExisting;
+                    reservationSelect.required = useExisting;
+                }
+                route.querySelector('i').className = dineIn && !useExisting ? 'bi bi-calendar2-heart' : 'bi bi-credit-card';
+                route.querySelector('strong').textContent = dineIn && !useExisting ? 'Choose an available table' : 'Select cash or QR Pay';
+                route.querySelector('p').textContent = dineIn && !useExisting
+                    ? 'Your cart stays safe while the admin reviews your table request.'
+                    : useExisting
+                        ? 'Your confirmed table will be linked automatically—no second selection.'
+                        : 'Takeout skips table selection and proceeds to payment.';
+                button.textContent = dineIn && !useExisting ? 'Choose a table' : 'Continue to payment';
+            };
+
+            choices.forEach(choice => choice.addEventListener('change', sync));
+            reservationModes.forEach(choice => choice.addEventListener('change', sync));
+            sync();
+        })();
+    </script>
+}

@@ -1,0 +1,35 @@
+@model IEnumerable<TransactionHistory>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Transaction Records";
+    var transactions = Model.ToList();
+}
+
+<div class="admin-page-intro">
+    <div><span>AUTOMATIC FINANCIAL RECORDS</span><h1>Transaction history</h1><p>A transaction is created automatically when a payment becomes paid. This page is read-only to protect financial history.</p></div>
+    <a asp-action="Payments" class="btn btn-outline-dark"><i class="bi bi-credit-card"></i> Manage payments</a>
+</div>
+
+<div class="admin-context-note success"><i class="bi bi-shield-check"></i><div><strong>No manual entry is needed</strong><p>For cash, mark the payment as paid. QR payments are recorded through checkout. The matching transaction will appear here.</p></div></div>
+
+<div class="panel">
+    <form method="get" class="transaction-search-row">
+        <label><span>Search records</span><input name="search" class="form-control" value="@ViewBag.Search" placeholder="Item name or payment method" /></label>
+        <button class="btn btn-dark"><i class="bi bi-search"></i> Search</button>
+        <a asp-action="Transactions" asp-route-range="today" class="btn @(ViewBag.Range == "today" ? "btn-success" : "btn-outline-secondary")">Today</a>
+        <a asp-action="Transactions" class="btn btn-outline-secondary">All records</a>
+    </form>
+    @if (!transactions.Any())
+    {
+        <div class="admin-empty-state"><i class="bi bi-cash-stack"></i><strong>No transaction records found</strong></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead><tr><th>Transaction</th><th>Customer</th><th>Order</th><th>Date</th><th>Order items</th><th>Method</th><th>Amount</th></tr></thead>
+                <tbody>@foreach (var transaction in transactions) { <tr><td><strong>#@transaction.Id</strong></td><td>@transaction.User?.FullName</td><td>#@transaction.OrderId</td><td>@transaction.TransactionDate.ToString("MMM d, yyyy · h:mm tt")</td><td>@transaction.OrderItems</td><td><span class="payment-method-pill">@transaction.PaymentMethod</span></td><td><strong>&#8369;@transaction.TotalAmount.ToString("0.00")</strong></td></tr> }</tbody>
+            </table>
+        </div>
+    }
+</div>

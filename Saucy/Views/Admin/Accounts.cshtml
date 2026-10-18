@@ -1,0 +1,50 @@
+@model IEnumerable<User>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Accounts & Roles";
+    var role = ViewBag.Role as string;
+    var state = ViewBag.State as string;
+    var users = Model.ToList();
+}
+
+<div class="admin-page-intro">
+    <div><span>ACCESS CONTROL</span><h1>Accounts and responsibilities</h1><p>Create staff access, review customer accounts and deactivate accounts without erasing their history.</p></div>
+</div>
+
+<div class="account-role-guide">
+    <div><i class="bi bi-shield-lock"></i><span><strong>Admin</strong><small>Full control: reservations, tables, payments, menu, refunds and accounts.</small></span></div>
+    <div><i class="bi bi-person-workspace"></i><span><strong>Staff</strong><small>Kitchen and counter only: prepare confirmed orders and complete them.</small></span></div>
+    <div><i class="bi bi-person"></i><span><strong>Customer</strong><small>Places orders, pays, reserves tables and views personal history.</small></span></div>
+</div>
+
+<div class="panel">
+    <div class="account-toolbar">
+        <div class="filter-row"><a asp-action="Accounts" class="@(string.IsNullOrWhiteSpace(role) && state != "inactive" ? "active" : "")">All</a><a asp-action="Accounts" asp-route-role="Customer" class="@(role == "Customer" ? "active" : "")">Customers</a><a asp-action="Accounts" asp-route-role="Staff" class="@(role == "Staff" ? "active" : "")">Staff</a><a asp-action="Accounts" asp-route-role="Admin" class="@(role == "Admin" ? "active" : "")">Admins</a><a asp-action="Accounts" asp-route-state="inactive" class="@(state == "inactive" ? "active" : "")">Inactive</a></div>
+        <button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#createTeamAccount"><i class="bi bi-person-plus"></i> Create team account</button>
+    </div>
+    <div class="collapse account-create-panel" id="createTeamAccount">
+        <div><strong>Create Admin or Staff access</strong><small>Choose Staff for kitchen/counter workers. Only choose Admin for trusted managers.</small></div>
+        <form asp-action="CreateStaff" method="post" class="row g-2">
+            <div class="col-md-3"><label>Full name<input name="fullName" class="form-control" required /></label></div>
+            <div class="col-md-3"><label>Email<input name="email" type="email" class="form-control" required /></label></div>
+            <div class="col-md-2"><label>Temporary password<input name="password" type="password" class="form-control" minlength="8" required /></label></div>
+            <div class="col-md-2"><label>Role<select name="role" class="form-select"><option>Staff</option><option>Admin</option></select></label></div>
+            <div class="col-md-2 d-flex align-items-end"><button class="btn btn-dark w-100">Create account</button></div>
+        </form>
+    </div>
+    @if (!users.Any())
+    {
+        <div class="admin-empty-state"><i class="bi bi-people"></i><strong>No accounts in this view</strong></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="admin-table account-table"><thead><tr><th>Account</th><th>Contact</th><th>Role</th><th>Created</th><th>Access</th><th>Action</th></tr></thead><tbody>
+                @foreach (var user in users)
+                {
+                    <tr><td><strong>@user.FullName</strong><small>ID #@user.Id</small></td><td>@user.Email</td><td><span class="role-pill role-@user.Role.ToLowerInvariant()">@user.Role</span></td><td>@user.CreatedAt.ToString("MMM d, yyyy")</td><td><span class="admin-status-pill @(user.IsActive ? "status-confirmed" : "status-cancelled")">@(user.IsActive ? "Active" : "Inactive")</span></td><td><form asp-action="ToggleAccount" method="post"><input type="hidden" name="id" value="@user.Id" /><button class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success")">@(user.IsActive ? "Deactivate access" : "Restore access")</button></form></td></tr>
+                }
+            </tbody></table>
+        </div>
+    }
+</div>

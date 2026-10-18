@@ -1,0 +1,91 @@
+@model SaucyMVC.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Log In";
+    var role = ViewBag.Role as string;
+    var returnUrl = ViewBag.ReturnUrl as string;
+    var isTeamPortal = !string.IsNullOrWhiteSpace(role);
+}
+
+<section class="account-page">
+    <div class="container-xl account-shell">
+        <aside class="account-showcase">
+            <a class="account-back-link" asp-controller="Home" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Saucy</a>
+            <div class="account-showcase-copy">
+                <span class="account-kicker">@(isTeamPortal ? "Saucy operations" : "Welcome to Saucy")</span>
+                <h1>@(isTeamPortal ? $"{role} access, made simple." : "Your next Saucy meal starts here.")</h1>
+                <p>@(isTeamPortal ? "Sign in with your authorized restaurant account to continue to the operations workspace." : "Order your favorites, reserve a table, and follow every meal from one customer account.")</p>
+                <div class="account-benefits">
+                    @if (isTeamPortal)
+                    {
+                        <span><i class="bi bi-shield-check"></i> Role-protected workspace</span>
+                        <span><i class="bi bi-speedometer2"></i> Restaurant operations dashboard</span>
+                    }
+                    else
+                    {
+                        <span><i class="bi bi-bag-heart"></i> Save and track your orders</span>
+                        <span><i class="bi bi-calendar2-check"></i> Manage table reservations</span>
+                        <span><i class="bi bi-clock-history"></i> Review your order history</span>
+                    }
+                </div>
+            </div>
+            <div class="account-dish" aria-hidden="true"><img src="~/legacy/FamousOfferings/FOPRB.png" alt="" /></div>
+        </aside>
+
+        <div class="account-panel">
+            <div class="account-form-wrap">
+                <div class="account-form-heading">
+                    <span class="eyebrow">@(isTeamPortal ? $"{role} portal" : "Customer account")</span>
+                    <h2>@(isTeamPortal ? $"{role} sign in" : "Welcome back")</h2>
+                    <p>Enter your account details to continue.</p>
+                </div>
+
+                <form method="post" class="account-form">
+                    <input type="hidden" name="role" value="@role" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div asp-validation-summary="ModelOnly" class="account-validation"></div>
+
+                    <div class="account-form-group">
+                        <label asp-for="Email">Email address</label>
+                        <div class="account-input">
+                            <i class="bi bi-envelope"></i>
+                            <input asp-for="Email" placeholder="you@example.com" autocomplete="email" autofocus />
+                        </div>
+                        <span asp-validation-for="Email" class="account-field-error"></span>
+                    </div>
+
+                    <div class="account-form-group">
+                        <label asp-for="Password"></label>
+                        <div class="account-input account-password-input">
+                            <i class="bi bi-lock"></i>
+                            <input asp-for="Password" placeholder="Enter your password" autocomplete="current-password" />
+                            <button type="button" class="password-toggle" data-password-toggle="#Password" aria-label="Show password"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <span asp-validation-for="Password" class="account-field-error"></span>
+                    </div>
+
+                    <button class="btn account-submit" type="submit">Log in <i class="bi bi-arrow-right"></i></button>
+                </form>
+
+                @if (!isTeamPortal)
+                {
+                    <div class="account-switch">New to Saucy? <a asp-action="Register" asp-route-returnUrl="@returnUrl">Create your account</a></div>
+                }
+                <div class="account-security-note"><i class="bi bi-shield-lock"></i> Your account details are protected and used only for Saucy services.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const input = document.querySelector(button.dataset.passwordToggle);
+                const reveal = input.type === 'password';
+                input.type = reveal ? 'text' : 'password';
+                button.innerHTML = reveal ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+                button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
+}

@@ -1,0 +1,99 @@
+@model IEnumerable<Reservation>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Manage Reservations";
+    var selectedStatus = ViewBag.Status as string;
+    var reservations = Model.ToList();
+    var holdMinutes = ViewBag.HoldMinutes as int? ?? 15;
+    var noShowGraceMinutes = ViewBag.NoShowGraceMinutes as int? ?? 15;
+}
+
+<div class="admin-page-intro">
+    <div><span>AUTOMATED TABLE CONTROL</span><h1>Reservation approvals</h1><p>Pending tables are held for @holdMinutes minutes. Confirmed tables reopen automatically after the @noShowGraceMinutes-minute no-show grace period.</p></div>
+    <a asp-action="DiningTables" class="btn btn-outline-dark"><i class="bi bi-grid-3x3-gap"></i> Live dining room</a>
+</div>
+
+<div class="reservation-admin-stats">
+    <div><i class="bi bi-hourglass-split"></i><span><strong>@reservations.Count(r => r.Status == "Pending")</strong><small>Awaiting review</small></span></div>
+    <div><i class="bi bi-calendar2-check"></i><span><strong>@reservations.Count(r => r.Status is "Confirmed" or "Accepted")</strong><small>Confirmed</small></span></div>
+    <div><i class="bi bi-person-check"></i><span><strong>@reservations.Count(r => r.Status == "Seated")</strong><small>Currently seated</small></span></div>
+</div>
+
+<div class="panel reservation-admin-panel">
+    <div class="filter-row">
+        <a asp-action="Reservations" class="@(string.IsNullOrWhiteSpace(selectedStatus) ? "active" : "")">All</a>
+        @foreach (var status in new[] { "Pending", "Confirmed", "Seated", "Expired", "No-show", "Declined", "Completed", "Cancelled" })
+        {
+            <a asp-action="Reservations" asp-route-status="@status" class="@(selectedStatus == status ? "active" : "")">@status</a>
+        }
+    </div>
+
+    @if (!reservations.Any())
+    {
+        <div class="admin-empty-state"><i class="bi bi-calendar-x"></i><strong>No reservations in this view</strong></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="admin-table reservation-review-table">
+                <thead><tr><th>Request</th><th>Customer</th><th>Schedule</th><th>Requested seating</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                    @foreach (var reservation in reservations)
+                    {
+                        var table = reservation.DiningTable;
+                        var fits = table != null && table.Capacity >= reservation.GuestCount;
+                        <tr>
+                            <td><strong>#@reservation.Id</strong><small>@reservation.CreatedAt.ToString("MMM d, h:mm tt")</small></td>
+                            <td><strong>@reservation.User?.FullName</strong><small>@reservation.User?.Email</small></td>
+                            <td><strong>@reservation.ReservationDate.ToString("MMM d, yyyy")</strong><small>@reservation.ReservationDate.ToString("dddd · h:mm tt")</small></td>
+                            <td>
+                                <div class="admin-table-capacity @(fits ? "fits" : "warning")">
+                                    <span><i class="bi bi-grid-3x3-gap-fill"></i><strong>@(table?.TableNumber ?? "None")</strong><small>@(table == null ? "No table" : $"{table.Capacity}-seat capacity")</small></span>
+                                    <span><i class="bi bi-people-fill"></i><strong>@reservation.GuestCount</strong><small>guests</small></span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(reservation.Notes)) { <p class="admin-reservation-note">“@reservation.Notes”</p> }
+                            </td>
+                            <td>
+                                <span class="admin-status-pill status-@reservation.Status.ToLowerInvariant()">@reservation.Status</span>
+                                @if (reservation.Status == "Pending" && reservation.HoldExpiresAt.HasValue)
+                                {
+                                    <small class="reservation-auto-note"><i class="bi bi-clock"></i> Hold ends @reservation.HoldExpiresAt.Value.ToString("h:mm tt")</small>
+                                }
+                                else if (reservation.Status == "Confirmed")
+                                {
+                                    <small class="reservation-auto-note"><i class="bi bi-person-check"></i> Auto-release @reservation.ReservationDate.AddMinutes(noShowGraceMinutes).ToString("h:mm tt") unless seated</small>
+                                }
+                                else if (reservation.ReleasedAt.HasValue)
+                                {
+                                    <small class="reservation-auto-note"><i class="bi bi-robot"></i> Released @reservation.ReleasedAt.Value.ToString("MMM d, h:mm tt")</small>
+                                }
+                            </td>
+                            <td>
+                                <div class="reservation-review-actions">
+                                    @if (reservation.Status is "Pending" or "Accepted")
+                                    {
+                                        <form asp-action="SetReservationStatus" method="post"><input type="hidden" name="id" value="@reservation.Id" /><input type="hidden" name="status" value="Confirmed" /><button class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Confirm</button></form>
+                                        <form asp-action="SetReservationStatus" method="post"><input type="hidden" name="id" value="@reservation.Id" /><input type="hidden" name="status" value="Declined" /><button class="btn btn-sm btn-outline-danger">Decline</button></form>
+                                    }
+                                    else if (reservation.Status == "Confirmed")
+                                    {
+                                        <form asp-action="SeatReservation" method="post"><input type="hidden" name="id" value="@reservation.Id" /><button class="btn btn-sm btn-success"><i class="bi bi-person-check"></i> Seat party</button></form>
+                                        <form asp-action="SetReservationStatus" method="post"><input type="hidden" name="id" value="@reservation.Id" /><input type="hidden" name="status" value="Cancelled" /><button class="btn btn-sm btn-outline-danger">Cancel</button></form>
+                                    }
+                                    else if (reservation.Status == "Seated")
+                                    {
+                                        <form asp-action="SetReservationStatus" method="post"><input type="hidden" name="id" value="@reservation.Id" /><input type="hidden" name="status" value="Completed" /><button class="btn btn-sm btn-warning"><i class="bi bi-stars"></i> Finish &amp; clean</button></form>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">No action needed</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

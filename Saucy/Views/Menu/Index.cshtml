@@ -1,0 +1,267 @@
+@model IEnumerable<MenuItem>
+@{
+    ViewData["Title"] = "Menu";
+    var cats = ViewBag.Categories as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var selected = ViewBag.SelectedCategory as string;
+    var sauces = ViewBag.Sauces as IEnumerable<SauceOption> ?? Enumerable.Empty<SauceOption>();
+    var sauceList = sauces.ToList();
+    var availableSauceCount = sauceList.Count(sauce => sauce.IsAvailable);
+    var itemCount = Model.Count();
+    var isLoggedIn = Context.Session.GetInt32("UserId").HasValue;
+}
+
+<section class="menu-intro">
+    <div class="container-xl">
+        <span class="eyebrow">Fresh from the kitchen</span>
+        <h1>Our Menu</h1>
+        <p>@itemCount freshly prepared @(itemCount == 1 ? "dish" : "dishes") to explore.</p>
+    </div>
+</section>
+
+<section class="menu-content">
+    <div class="container-xl">
+        <nav class="category-pills" aria-label="Menu categories">
+            <a asp-action="Index" class="@(string.IsNullOrWhiteSpace(selected) ? "active" : "")">All</a>
+            @foreach (var category in cats)
+            {
+                <a asp-action="Index" asp-route-category="@category" class="@(selected == category ? "active" : "")">@category</a>
+            }
+        </nav>
+
+        @if ((string.IsNullOrWhiteSpace(selected) || selected == "Famous Offerings") && Model.Any(item => item.Category == "Famous Offerings"))
+        {
+            <div class="sauce-menu-notice">
+                <span><i class="bi bi-droplet-half"></i></span>
+                <div><small>FAMOUS OFFERINGS</small><strong>Choose two sauces with every meal</strong><p>Mix two flavors or select the same favorite twice. Unavailable sauces remain visible so you know today's selection.</p></div>
+                <em>@availableSauceCount available</em>
+            </div>
+        }
+
+        <div class="row g-4">
+            @foreach (var item in Model)
+            {
+                var requiresSauces = item.Category == "Famous Offerings";
+                <div class="col-md-6 col-lg-4">
+                    <article class="food-card">
+                        <div class="food-card-media">
+                            <img src="@(item.ImagePath ?? "/legacy/Images/Icon.png")" alt="@item.Name" loading="lazy" onerror="this.src='/legacy/Images/Icon.png'" />
+                            <span class="food-card-badge">@item.Category</span>
+                            @if (requiresSauces)
+                            {
+                                <span class="food-card-sauce-badge"><i class="bi bi-droplet-fill"></i> 2 sauces included</span>
+                            }
+                        </div>
+                        <div class="body">
+                            <div class="food-card-heading">
+                                <h2>@item.Name</h2>
+                                <span class="price">&#8369;@item.Price.ToString("0.00")</span>
+                            </div>
+                            <p>@item.Description</p>
+                            @if (isLoggedIn && requiresSauces)
+                            {
+                                <button type="button" class="btn btn-dark w-100 sauce-customize-button" data-bs-toggle="modal" data-bs-target="#sauceModal-@item.Id">
+                                    <i class="bi bi-droplet-half"></i> Choose 2 sauces
+                                </button>
+                            }
+                            else if (isLoggedIn)
+                            {
+                                <form asp-controller="Cart" asp-action="Add" method="post" class="food-card-order">
+                                    <label class="visually-hidden" for="quantity-@item.Id">Quantity for @item.Name</label>
+                                    <input id="quantity-@item.Id" type="number" name="quantity" class="form-control" min="1" value="1" />
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                    <button class="btn btn-dark"><i class="bi bi-cart-plus"></i> Add to Cart</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a class="btn btn-outline-dark w-100 menu-login-cta" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@($"{Context.Request.Path}{Context.Request.QueryString}")"><i class="bi bi-person-lock"></i> Log in to order</a>
+                            }
+                        </div>
+                    </article>
+
+                    @if (isLoggedIn && requiresSauces)
+                    {
+                        <div class="modal fade sauce-picker-modal" id="sauceModal-@item.Id" tabindex="-1" aria-labelledby="sauceModalLabel-@item.Id" aria-hidden="true">
+                            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <form asp-controller="Cart" asp-action="Add" method="post">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                        <div class="modal-header sauce-modal-header">
+                                            <div><span>MAKE IT YOURS</span><h2 class="modal-title" id="sauceModalLabel-@item.Id">Choose 2 sauces for @item.Name</h2><p>You may choose two different flavors or the same sauce twice.</p></div>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body sauce-modal-body">
+                                            <input type="hidden" name="sauce1Id" value="" />
+                                            <input type="hidden" name="sauce2Id" value="" />
+
+                                            <div class="sauce-selection-slots" role="group" aria-label="Your two sauce choices">
+                                                <button type="button" class="sauce-selection-slot active" data-sauce-slot="1" aria-pressed="true">
+                                                    <span class="sauce-slot-number">1</span>
+                                                    <span class="sauce-slot-preview"><img alt="" hidden /><i class="bi bi-droplet"></i></span>
+                                                    <span class="sauce-slot-copy"><small>FIRST SAUCE</small><strong data-slot-name>Choose a sauce</strong></span>
+                                                    <span class="sauce-slot-action">Selecting</span>
+                                                </button>
+                                                <button type="button" class="sauce-selection-slot" data-sauce-slot="2" aria-pressed="false">
+                                                    <span class="sauce-slot-number">2</span>
+                                                    <span class="sauce-slot-preview"><img alt="" hidden /><i class="bi bi-droplet"></i></span>
+                                                    <span class="sauce-slot-copy"><small>SECOND SAUCE</small><strong data-slot-name>Choose a sauce</strong></span>
+                                                    <span class="sauce-slot-action">Choose</span>
+                                                </button>
+                                            </div>
+
+                                            <section class="sauce-choice-section">
+                                                <div class="sauce-gallery-heading">
+                                                    <div><strong data-picker-instruction>Choose your first sauce</strong><small>Tap a slot above to change it. You may select the same flavor twice.</small></div>
+                                                    <span><i class="bi bi-check2-circle"></i> <span data-choice-progress>0 of 2 selected</span></span>
+                                                </div>
+                                                <div class="sauce-option-grid">
+                                                    @foreach (var sauce in sauceList)
+                                                    {
+                                                        if (sauce.IsAvailable)
+                                                        {
+                                                            <button type="button" class="sauce-option-card" data-sauce-id="@sauce.Id" data-sauce-name="@sauce.Name" data-sauce-image="@sauce.ImagePath" aria-label="Choose @sauce.Name sauce">
+                                                                <img src="@sauce.ImagePath" alt="@sauce.Name sauce" />
+                                                                <span><strong>@sauce.Name</strong><small>Available</small></span>
+                                                                <b class="sauce-selection-count" aria-hidden="true"></b>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="sauce-option-card unavailable" aria-disabled="true">
+                                                                <img src="@sauce.ImagePath" alt="@sauce.Name sauce unavailable" />
+                                                                <span><strong>@sauce.Name</strong><small>Not available</small></span>
+                                                                <i class="bi bi-slash-circle"></i>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+                                            </section>
+                                        </div>
+                                        <div class="modal-footer sauce-modal-footer">
+                                            <label for="modalQuantity-@item.Id">Quantity <input id="modalQuantity-@item.Id" type="number" name="quantity" min="1" max="20" value="1" /></label>
+                                            <div><span><small data-sauce-summary>CHOOSE BOTH SAUCES</small><strong>&#8369;@item.Price.ToString("0.00") each</strong></span><button class="btn btn-warning btn-lg fw-semibold sauce-add-button" disabled><i class="bi bi-cart-plus"></i> @(availableSauceCount == 0 ? "No sauces available" : "Add meal to cart")</button></div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.sauce-picker-modal').forEach(function (modal) {
+            const form = modal.querySelector('form');
+            const inputs = {
+                1: form.querySelector('input[name="sauce1Id"]'),
+                2: form.querySelector('input[name="sauce2Id"]')
+            };
+            const slots = Array.from(form.querySelectorAll('[data-sauce-slot]'));
+            const cards = Array.from(form.querySelectorAll('.sauce-option-card[data-sauce-id]'));
+            const submitButton = form.querySelector('.sauce-add-button');
+            const instruction = form.querySelector('[data-picker-instruction]');
+            const progress = form.querySelector('[data-choice-progress]');
+            const summary = form.querySelector('[data-sauce-summary]');
+            let activeSlot = 1;
+
+            function selectedCard(slotNumber) {
+                return cards.find(function (card) {
+                    return card.dataset.sauceId === inputs[slotNumber].value;
+                });
+            }
+
+            function selectSlot(slotNumber) {
+                activeSlot = slotNumber;
+                renderPicker();
+            }
+
+            function renderPicker() {
+                let selectedCount = 0;
+
+                slots.forEach(function (slot) {
+                    const slotNumber = Number(slot.dataset.sauceSlot);
+                    const card = selectedCard(slotNumber);
+                    const preview = slot.querySelector('.sauce-slot-preview');
+                    const previewImage = preview.querySelector('img');
+                    const previewIcon = preview.querySelector('i');
+                    const slotName = slot.querySelector('[data-slot-name]');
+                    const slotAction = slot.querySelector('.sauce-slot-action');
+                    const isActive = slotNumber === activeSlot;
+
+                    slot.classList.toggle('active', isActive);
+                    slot.classList.toggle('complete', Boolean(card));
+                    slot.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+
+                    if (card) {
+                        selectedCount++;
+                        previewImage.src = card.dataset.sauceImage;
+                        previewImage.alt = card.dataset.sauceName + ' sauce';
+                        previewImage.hidden = false;
+                        previewIcon.hidden = true;
+                        slotName.textContent = card.dataset.sauceName;
+                        slotAction.textContent = isActive ? 'Changing' : 'Change';
+                    } else {
+                        previewImage.removeAttribute('src');
+                        previewImage.alt = '';
+                        previewImage.hidden = true;
+                        previewIcon.hidden = false;
+                        slotName.textContent = 'Choose a sauce';
+                        slotAction.textContent = isActive ? 'Selecting' : 'Choose';
+                    }
+                });
+
+                cards.forEach(function (card) {
+                    const usedIn = [];
+                    if (inputs[1].value === card.dataset.sauceId) usedIn.push('1');
+                    if (inputs[2].value === card.dataset.sauceId) usedIn.push('2');
+                    card.classList.toggle('selected', usedIn.length > 0);
+                    card.querySelector('.sauce-selection-count').textContent = usedIn.join(' · ');
+                    card.setAttribute('aria-label', usedIn.length
+                        ? card.dataset.sauceName + ' selected for sauce ' + usedIn.join(' and ')
+                        : 'Choose ' + card.dataset.sauceName + ' sauce');
+                });
+
+                const first = selectedCard(1);
+                const second = selectedCard(2);
+                const complete = Boolean(first && second);
+                instruction.textContent = complete
+                    ? 'Both sauces selected'
+                    : 'Choose your ' + (activeSlot === 1 ? 'first' : 'second') + ' sauce';
+                progress.textContent = selectedCount + ' of 2 selected';
+                submitButton.disabled = !complete;
+                summary.textContent = complete
+                    ? first.dataset.sauceName + ' + ' + second.dataset.sauceName
+                    : 'CHOOSE BOTH SAUCES';
+            }
+
+            slots.forEach(function (slot) {
+                slot.addEventListener('click', function () {
+                    selectSlot(Number(slot.dataset.sauceSlot));
+                });
+            });
+
+            cards.forEach(function (card) {
+                card.addEventListener('click', function () {
+                    inputs[activeSlot].value = card.dataset.sauceId;
+                    if (activeSlot === 1 && !inputs[2].value) activeSlot = 2;
+                    renderPicker();
+                });
+            });
+
+            form.addEventListener('submit', function (event) {
+                if (!inputs[1].value || !inputs[2].value) {
+                    event.preventDefault();
+                    selectSlot(inputs[1].value ? 2 : 1);
+                }
+            });
+
+            renderPicker();
+        });
+    </script>
+}

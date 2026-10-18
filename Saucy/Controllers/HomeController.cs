@@ -1,0 +1,2 @@
+using Microsoft.AspNetCore.Mvc; using Microsoft.EntityFrameworkCore; using SaucyMVC.Data;
+namespace SaucyMVC.Controllers; public class HomeController:Controller { private readonly SaucyDbContext _db; public HomeController(SaucyDbContext db)=>_db=db; public async Task<IActionResult> Index(){ViewBag.Featured=await _db.MenuItems.Where(x=>x.IsAvailable&&x.Category=="Famous Offerings").OrderBy(x=>x.Name).Take(3).ToListAsync();return View();} public IActionResult About()=>View(); public IActionResult Error()=>View(); }

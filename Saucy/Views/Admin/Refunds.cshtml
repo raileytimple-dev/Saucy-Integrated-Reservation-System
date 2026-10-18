@@ -1,0 +1,37 @@
+@model IEnumerable<RefundRequest>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Refund Requests";
+    var selectedStatus = ViewBag.Status as string;
+    var refunds = Model.ToList();
+}
+
+<div class="admin-page-intro">
+    <div><span>ADMIN DECISION REQUIRED</span><h1>Refund requests</h1><p>Review the order, amount and customer explanation before accepting or declining a request.</p></div>
+    <a asp-action="Transactions" class="btn btn-outline-dark"><i class="bi bi-cash-stack"></i> Transaction records</a>
+</div>
+
+<div class="panel">
+    <div class="filter-row"><a asp-action="Refunds" class="@(string.IsNullOrWhiteSpace(selectedStatus) ? "active" : "")">All</a><a asp-action="Refunds" asp-route-status="Pending" class="@(selectedStatus == "Pending" ? "active" : "")">Needs decision</a><a asp-action="Refunds" asp-route-status="Accepted" class="@(selectedStatus == "Accepted" ? "active" : "")">Accepted</a><a asp-action="Refunds" asp-route-status="Declined" class="@(selectedStatus == "Declined" ? "active" : "")">Declined</a></div>
+    @if (!refunds.Any())
+    {
+        <div class="admin-empty-state"><i class="bi bi-arrow-counterclockwise"></i><strong>No refund requests in this view</strong></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="admin-table refund-table">
+                <thead><tr><th>Request</th><th>Customer</th><th>Order</th><th>Reason</th><th>Amount</th><th>Status</th><th>Decision</th></tr></thead>
+                <tbody>
+                    @foreach (var refund in refunds)
+                    {
+                        <tr>
+                            <td><strong>#@refund.Id</strong></td><td>@refund.User?.FullName</td><td>#@refund.OrderId</td><td class="refund-reason">@refund.Description</td><td><strong>&#8369;@refund.Amount.ToString("0.00")</strong></td><td><span class="admin-status-pill status-@refund.Status.ToLowerInvariant()">@refund.Status</span></td>
+                            <td>@if (refund.Status == "Pending") { <div class="refund-actions"><form asp-action="SetRefundStatus" method="post"><input type="hidden" name="id" value="@refund.Id" /><input type="hidden" name="status" value="Accepted" /><button class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Accept</button></form><form asp-action="SetRefundStatus" method="post"><input type="hidden" name="id" value="@refund.Id" /><input type="hidden" name="status" value="Declined" /><button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg"></i> Decline</button></form></div> } else { <span class="text-muted small">Decision recorded</span> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -1,0 +1,41 @@
+@model IEnumerable<Order>
+@{
+    Layout = "_StaffLayout";
+    ViewData["Title"] = "Order History";
+    var orders = Model.ToList();
+}
+
+<div class="admin-page-intro staff-page-intro">
+    <div><span>READ-ONLY RECORDS</span><h1>Completed order history</h1><p>Use this page to check what was prepared. Contact an administrator to correct a record.</p></div>
+    <a asp-action="Orders" class="btn btn-outline-dark"><i class="bi bi-arrow-left"></i> Active orders</a>
+</div>
+
+<div class="panel">
+    @if (!orders.Any())
+    {
+        <div class="admin-empty-state"><i class="bi bi-clock-history"></i><strong>No completed or cancelled orders yet</strong></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="admin-table staff-history-table">
+                <thead><tr><th>Order</th><th>Customer</th><th>Service</th><th>Items and sauces</th><th>Total</th><th>Result</th><th>Activity</th></tr></thead>
+                <tbody>
+                    @foreach (var order in orders)
+                    {
+                        var table = order.Reservation?.DiningTable;
+                        <tr>
+                            <td><strong>#@order.Id</strong><small>@order.OrderedAt.ToString("MMM d, yyyy · h:mm tt")</small></td>
+                            <td>@order.User?.FullName</td>
+                            <td><strong>@order.OrderType</strong><small>@(table == null ? (order.OrderType == "Takeout" ? "Takeout counter" : "Walk-in") : $"{table.TableNumber} · {table.Capacity} seats")</small></td>
+                            <td>@foreach (var item in order.Items) { <span class="admin-order-line"><strong>@item.Quantity× @item.MenuItem?.Name</strong>@if (item.Sauce1Name != null) { <small><i class="bi bi-droplet-fill"></i> @item.Sauce1Name + @item.Sauce2Name</small> }</span> }</td>
+                            <td><strong>&#8369;@order.TotalAmount.ToString("0.00")</strong></td>
+                            <td><span class="admin-status-pill status-@order.Status.ToLowerInvariant()">@order.Status</span></td>
+                            <td><details class="order-audit-timeline compact"><summary>View timeline</summary><ol>@foreach (var entry in order.StatusHistory.OrderByDescending(entry => entry.ChangedAt)) { <li><span></span><div><strong>@entry.Action@if (entry.FromStatus != entry.ToStatus) { <text>: @entry.ToStatus</text> }</strong><small>@entry.ChangedAt.ToString("MMM d, h:mm tt") · @entry.ChangedByName</small></div></li> }</ol></details></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

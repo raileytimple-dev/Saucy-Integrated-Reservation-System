@@ -1,0 +1,103 @@
+@model IEnumerable<DiningTable>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Dining Tables";
+    var tables = Model.ToList();
+    var nextReservations = ViewBag.NextReservations as IDictionary<int, Reservation> ?? new Dictionary<int, Reservation>();
+}
+
+<div class="admin-page-intro">
+    <div><span>LIVE FLOOR CONTROL</span><h1>Dining room</h1><p>Seat walk-ins without risking confirmed reservations. Every walk-in must leave a 30-minute preparation buffer.</p></div>
+    <a asp-action="Reservations" class="btn btn-outline-dark"><i class="bi bi-calendar2-check"></i> Reservation queue</a>
+</div>
+
+<div class="table-ops-stats">
+    <div><i class="bi bi-check-circle"></i><span><strong>@tables.Count(t => t.IsActive && t.OperationalStatus == "Available")</strong><small>Ready</small></span></div>
+    <div><i class="bi bi-people"></i><span><strong>@tables.Count(t => t.OperationalStatus == "Occupied")</strong><small>Occupied</small></span></div>
+    <div><i class="bi bi-stars"></i><span><strong>@tables.Count(t => t.OperationalStatus == "Cleaning")</strong><small>Cleaning</small></span></div>
+    <div><i class="bi bi-calendar-event"></i><span><strong>@nextReservations.Values.Count(r => r.Status == "Confirmed")</strong><small>Upcoming confirmed</small></span></div>
+</div>
+
+<section class="panel table-ops-add">
+    <div><small>FLOOR SETUP</small><h2>Add a dining table</h2><p>The capacity is shown to customers before they reserve.</p></div>
+    <form asp-action="AddDiningTable" method="post">
+        <label>Table name<input class="form-control" name="tableNumber" placeholder="e.g. T07" required /></label>
+        <label>Capacity<input class="form-control" name="capacity" type="number" min="1" max="30" placeholder="Seats" required /></label>
+        <button class="btn btn-success"><i class="bi bi-plus-lg"></i> Add table</button>
+    </form>
+</section>
+
+<div class="table-ops-grid">
+    @foreach (var table in tables)
+    {
+        nextReservations.TryGetValue(table.Id, out var nextReservation);
+        var operationalStatus = table.IsActive ? table.OperationalStatus : "Out of Service";
+        var statusClass = operationalStatus.ToLowerInvariant().Replace(" ", "-");
+        var minutesUntilReservation = nextReservation == null ? (double?)null : (nextReservation.ReservationDate - DateTime.Now).TotalMinutes;
+        var reservedSoon = minutesUntilReservation.HasValue && minutesUntilReservation.Value <= 150;
+
+        <article class="table-ops-card @statusClass @(reservedSoon ? "reserved-soon" : "")">
+            <header>
+                <div class="table-ops-icon"><i class="bi bi-grid-3x3-gap-fill"></i></div>
+                <div><small>DINING TABLE</small><h2>@table.TableNumber</h2><span><i class="bi bi-people"></i> @table.Capacity-seat capacity</span></div>
+                <strong class="table-ops-status status-@statusClass">@operationalStatus</strong>
+            </header>
+
+            @if (operationalStatus == "Occupied")
+            {
+                <div class="table-ops-current"><i class="bi bi-person-check-fill"></i><span><small>CURRENT PARTY</small><strong>@(table.CurrentPartySize ?? 0) guests</strong><em>Expected until @(table.OccupiedUntil?.ToString("h:mm tt") ?? "staff clears table")</em></span></div>
+            }
+            else if (operationalStatus == "Cleaning")
+            {
+                <div class="table-ops-current cleaning"><i class="bi bi-stars"></i><span><small>TURNOVER IN PROGRESS</small><strong>Needs cleaning</strong><em>Mark ready only when the table can be seated.</em></span></div>
+            }
+
+            <div class="table-ops-next @(nextReservation == null ? "empty" : nextReservation.Status.ToLowerInvariant())">
+                @if (nextReservation == null)
+                {
+                    <i class="bi bi-calendar2"></i><span><small>NEXT RESERVATION</small><strong>No upcoming request</strong><em>Walk-ins may use this table.</em></span>
+                }
+                else
+                {
+                    <i class="bi bi-calendar2-event-fill"></i><span><small>NEXT @nextReservation.Status.ToUpperInvariant()</small><strong>@nextReservation.ReservationDate.ToString("MMM d · h:mm tt")</strong><em>@nextReservation.User?.FullName · party of @nextReservation.GuestCount</em></span>
+                }
+            </div>
+
+            <div class="table-ops-primary">
+                @if (!table.IsActive)
+                {
+                    <form asp-action="ToggleDiningTable" method="post"><input type="hidden" name="id" value="@table.Id" /><button class="btn btn-success w-100"><i class="bi bi-arrow-counterclockwise"></i> Return to service</button></form>
+                }
+                else if (operationalStatus == "Available")
+                {
+                    <form asp-action="SeatWalkIn" method="post" class="walkin-form">
+                        <input type="hidden" name="id" value="@table.Id" />
+                        <label><span>Party</span><input name="partySize" type="number" min="1" max="@table.Capacity" value="1" required /></label>
+                        <label><span>Est. stay</span><select name="durationMinutes"><option value="60">1 hour</option><option value="90" selected>1.5 hours</option><option value="120">2 hours</option></select></label>
+                        <button class="btn btn-dark"><i class="bi bi-person-plus"></i> Seat walk-in</button>
+                    </form>
+                    @if (reservedSoon)
+                    {
+                        <p class="table-buffer-warning"><i class="bi bi-shield-exclamation"></i> Allowed only if the table can be cleared 30 minutes before the reservation.</p>
+                    }
+                }
+                else if (operationalStatus == "Occupied")
+                {
+                    <form asp-action="ClearTable" method="post"><input type="hidden" name="id" value="@table.Id" /><button class="btn btn-warning w-100"><i class="bi bi-stars"></i> Party left — start cleaning</button></form>
+                }
+                else if (operationalStatus == "Cleaning")
+                {
+                    <form asp-action="SetTableReady" method="post"><input type="hidden" name="id" value="@table.Id" /><button class="btn btn-success w-100"><i class="bi bi-check-lg"></i> Cleaning done — mark ready</button></form>
+                }
+            </div>
+
+            <details class="table-ops-settings">
+                <summary><i class="bi bi-gear"></i> Table settings</summary>
+                <div>
+                    <form asp-action="EditDiningTable" method="post"><input type="hidden" name="id" value="@table.Id" /><input name="capacity" type="number" min="1" max="30" value="@table.Capacity" /><button class="btn btn-sm btn-outline-primary">Save capacity</button></form>
+                    <form asp-action="ToggleDiningTable" method="post"><input type="hidden" name="id" value="@table.Id" /><button class="btn btn-sm btn-outline-danger">@(table.IsActive ? "Take out of service" : "Restore table")</button></form>
+                </div>
+            </details>
+        </article>
+    }
+</div>

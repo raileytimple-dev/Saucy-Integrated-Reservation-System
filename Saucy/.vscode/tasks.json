@@ -1,0 +1,8 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label":"Saucy: restore","type":"process","command":"dotnet","args":["restore"],"problemMatcher":"$msCompile"},
+    {"label":"Saucy: run","type":"process","command":"dotnet","args":["run"],"problemMatcher":"$msCompile","isBackground":true},
+    {"label":"Saucy: build","type":"process","command":"dotnet","args":["build"],"problemMatcher":"$msCompile"}
+  ]
+}

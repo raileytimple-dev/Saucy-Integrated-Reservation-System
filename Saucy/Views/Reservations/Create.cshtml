@@ -1,0 +1,234 @@
+@model SaucyMVC.ViewModels.ReservationViewModel
+@inject CartService Cart
+@{
+    ViewData["Title"] = "Reserve a Table";
+    var isGuestPreview = (ViewBag.IsGuestPreview as bool?) == true;
+    var isCheckoutFlow = Model.ContinueToCheckout || (ViewBag.IsCheckoutFlow as bool?) == true;
+    var reservationReturnUrl = isCheckoutFlow ? "/Reservations/Create?checkout=true" : "/Reservations/Create";
+    var availableCount = Model.Tables.Count(table => table.IsAvailable);
+}
+
+@if (isGuestPreview)
+{
+    <section class="guest-feature-page reservation-preview-page">
+        <div class="container-xl guest-feature-grid">
+            <div class="guest-feature-copy">
+                <span class="eyebrow">Transparent table reservations</span>
+                <h1>Choose the table that fits your gathering.</h1>
+                <p>See each table's seating capacity and live availability before sending your request. The table is held while a Saucy administrator reviews and confirms it.</p>
+                <div class="guest-feature-actions">
+                    <a class="btn btn-warning btn-lg fw-semibold" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@reservationReturnUrl">Log in to reserve</a>
+                    <a class="btn btn-outline-dark btn-lg" asp-controller="Account" asp-action="Register" asp-route-returnUrl="@reservationReturnUrl">Create account</a>
+                </div>
+                <div class="guest-feature-points">
+                    <span><i class="bi bi-check-circle-fill"></i> Live table status</span>
+                    <span><i class="bi bi-check-circle-fill"></i> Visible seat capacity</span>
+                    <span><i class="bi bi-check-circle-fill"></i> Admin confirmation</span>
+                </div>
+            </div>
+            <div class="preview-window reservation-preview-card" aria-label="Table availability preview">
+                <div class="preview-window-bar"><span></span><span></span><span></span><small>Dining room preview</small></div>
+                <div class="preview-window-body">
+                    <div class="preview-order-heading">
+                        <div><small>DINNER · 6:00 PM</small><h2>Choose your table</h2></div>
+                        <span class="preview-status">3 available</span>
+                    </div>
+                    <div class="reservation-preview-tables">
+                        <div class="available"><i class="bi bi-people"></i><strong>T01</strong><small>2 seats</small></div>
+                        <div class="reserved"><i class="bi bi-lock"></i><strong>T02</strong><small>Reserved</small></div>
+                        <div class="available"><i class="bi bi-people"></i><strong>T03</strong><small>4 seats</small></div>
+                        <div class="available"><i class="bi bi-people"></i><strong>T05</strong><small>6 seats</small></div>
+                    </div>
+                    <p class="reservation-preview-note"><i class="bi bi-shield-check"></i> Your selection is finalized after admin confirmation.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <section class="reservation-booking-page">
+        <div class="container-xl">
+            @if (isCheckoutFlow)
+            {
+                <nav class="checkout-progress" aria-label="Checkout progress">
+                    <span class="complete"><i class="bi bi-check-lg"></i><b>Cart</b><small>Food selected</small></span>
+                    <i class="bi bi-chevron-right"></i>
+                    <span class="current"><em>2</em><b>Reservation</b><small>Choose your table</small></span>
+                    <i class="bi bi-chevron-right"></i>
+                    <span><em>3</em><b>Payment</b><small>Cash or QR Pay</small></span>
+                </nav>
+            }
+            <header class="reservation-page-heading">
+                <div>
+                    <span class="eyebrow">@(isCheckoutFlow ? "Dine-in checkout · Step 2 of 3" : "Plan your visit")</span>
+                    <h1>@(isCheckoutFlow ? "Choose a table for your order" : "Reserve your table")</h1>
+                    <p>@(isCheckoutFlow ? $"Your ₱{Cart.Total:0.00} food order stays in your cart. Choose a table, then payment will open automatically after admin confirmation." : "Set your schedule and party size, then choose an available table from the dining room.")</p>
+                </div>
+                @if (isCheckoutFlow)
+                {
+                    <a asp-controller="Cart" asp-action="Index" class="reservation-history-link"><i class="bi bi-arrow-left"></i> Back to cart</a>
+                }
+                else
+                {
+                    <a asp-action="Index" class="reservation-history-link"><i class="bi bi-calendar2-check"></i> My reservations</a>
+                }
+            </header>
+
+            <form method="post" class="reservation-booking-form" id="reservationForm">
+                <input asp-for="ContinueToCheckout" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="reservation-validation"></div>
+
+                <aside class="reservation-details-panel">
+                    <div class="reservation-panel-heading">
+                        <span>01</span>
+                        <div><small>Your visit</small><h2>Date, time &amp; party</h2></div>
+                    </div>
+
+                    <div class="reservation-field-grid">
+                        <div class="reservation-field">
+                            <label asp-for="Date">Reservation date</label>
+                            <div><i class="bi bi-calendar3"></i><input asp-for="Date" min="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+                            <span asp-validation-for="Date"></span>
+                        </div>
+                        <div class="reservation-field">
+                            <label asp-for="Time">Arrival time</label>
+                            <div><i class="bi bi-clock"></i><input asp-for="Time" /></div>
+                            <span asp-validation-for="Time"></span>
+                        </div>
+                        <div class="reservation-field reservation-field-full">
+                            <label asp-for="GuestCount">Party size</label>
+                            <div><i class="bi bi-people"></i><input asp-for="GuestCount" min="1" max="30" /></div>
+                            <span asp-validation-for="GuestCount"></span>
+                        </div>
+                        <div class="reservation-field reservation-field-full">
+                            <label asp-for="Notes">Special requests <small>Optional</small></label>
+                            <div class="align-items-start"><i class="bi bi-chat-left-text mt-1"></i><textarea asp-for="Notes" rows="3" placeholder="High chair, accessibility needs, celebration..."></textarea></div>
+                            <span asp-validation-for="Notes"></span>
+                        </div>
+                    </div>
+
+                    <div class="reservation-process-note">
+                        <i class="bi bi-info-circle"></i>
+                        <p><strong>How confirmation works</strong><span>Your chosen table is held as pending. An administrator reviews the request before it becomes confirmed.</span></p>
+                    </div>
+                </aside>
+
+                <section class="reservation-table-panel">
+                    <div class="reservation-panel-heading reservation-table-heading">
+                        <span>02</span>
+                        <div><small>Dining room</small><h2>Select a table</h2></div>
+                        <strong id="availabilityCount">@availableCount available</strong>
+                    </div>
+
+                    <div class="table-status-legend" aria-label="Table status legend">
+                        <span><i class="legend-dot available"></i> Available</span>
+                        <span><i class="legend-dot occupied"></i> Occupied</span>
+                        <span><i class="legend-dot too-small"></i> Too small</span>
+                    </div>
+
+                    <div class="reservation-table-grid" id="tableGrid" aria-live="polite">
+                        @foreach (var table in Model.Tables)
+                        {
+                            var stateClass = table.State.ToLowerInvariant().Replace(" ", "-");
+                            <label class="reservation-table-card @stateClass">
+                                <input type="radio" name="SelectedTableId" value="@table.Id" disabled="@(!table.IsAvailable)" checked="@(Model.SelectedTableId == table.Id)" />
+                                <span class="table-select-check"><i class="bi bi-check-lg"></i></span>
+                                <i class="table-card-icon bi @(table.IsAvailable ? "bi-people" : "bi-lock")"></i>
+                                <strong>@table.TableNumber</strong>
+                                <span>@table.Capacity @(table.Capacity == 1 ? "seat" : "seats")</span>
+                                <small>@table.State</small>
+                            </label>
+                        }
+                    </div>
+                    <div class="table-grid-loading" id="tableLoading" hidden><span class="spinner-border spinner-border-sm"></span> Checking live availability...</div>
+                    <div class="table-grid-empty" id="tableEmpty" hidden><i class="bi bi-calendar-x"></i><strong>No suitable table is open</strong><span>Try a different time or reduce the party size.</span></div>
+                    <span asp-validation-for="SelectedTableId" class="reservation-table-error"></span>
+
+                    <div class="reservation-submit-row">
+                        <div><i class="bi bi-shield-check"></i><span><strong>No instant approval</strong><small>Admin confirmation is required</small></span></div>
+                        <button type="submit" class="btn btn-warning btn-lg fw-semibold">@(isCheckoutFlow ? "Submit for confirmation" : "Request this table") <i class="bi bi-arrow-right"></i></button>
+                    </div>
+                </section>
+            </form>
+        </div>
+    </section>
+}
+
+@section Scripts {
+    @if (!isGuestPreview)
+    {
+        <script>
+            (() => {
+                const date = document.getElementById('Date');
+                const time = document.getElementById('Time');
+                const guests = document.getElementById('GuestCount');
+                const grid = document.getElementById('tableGrid');
+                const loading = document.getElementById('tableLoading');
+                const empty = document.getElementById('tableEmpty');
+                const count = document.getElementById('availabilityCount');
+                const endpoint = '@Url.Action("Availability", "Reservations")';
+                let timer;
+
+                function tableCard(table, selectedValue) {
+                    const label = document.createElement('label');
+                    const stateClass = table.state.toLowerCase().replaceAll(' ', '-');
+                    label.className = `reservation-table-card ${stateClass}`;
+
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = 'SelectedTableId';
+                    input.value = table.id;
+                    input.disabled = !table.isAvailable;
+                    input.checked = table.isAvailable && String(table.id) === selectedValue;
+
+                    const check = document.createElement('span');
+                    check.className = 'table-select-check';
+                    check.innerHTML = '<i class="bi bi-check-lg"></i>';
+
+                    const icon = document.createElement('i');
+                    icon.className = `table-card-icon bi ${table.isAvailable ? 'bi-people' : 'bi-lock'}`;
+
+                    const name = document.createElement('strong');
+                    name.textContent = table.tableNumber;
+                    const seats = document.createElement('span');
+                    seats.textContent = `${table.capacity} ${table.capacity === 1 ? 'seat' : 'seats'}`;
+                    const status = document.createElement('small');
+                    status.textContent = table.state;
+
+                    label.append(input, check, icon, name, seats, status);
+                    return label;
+                }
+
+                async function refreshTables() {
+                    if (!date.value || !time.value || !guests.value) return;
+                    const selected = grid.querySelector('input:checked')?.value ?? '';
+                    loading.hidden = false;
+                    empty.hidden = true;
+                    grid.classList.add('is-loading');
+
+                    try {
+                        const query = new URLSearchParams({ date: date.value, time: time.value, guestCount: guests.value });
+                        const response = await fetch(`${endpoint}?${query}`, { headers: { 'Accept': 'application/json' } });
+                        if (!response.ok) throw new Error('Availability request failed.');
+                        const tables = await response.json();
+                        grid.replaceChildren(...tables.map(table => tableCard(table, selected)));
+                        const available = tables.filter(table => table.isAvailable).length;
+                        count.textContent = `${available} available`;
+                        empty.hidden = available !== 0;
+                    } catch {
+                        count.textContent = 'Unable to refresh';
+                    } finally {
+                        loading.hidden = true;
+                        grid.classList.remove('is-loading');
+                    }
+                }
+
+                [date, time, guests].forEach(input => input.addEventListener('change', () => {
+                    clearTimeout(timer);
+                    timer = setTimeout(refreshTables, 200);
+                }));
+            })();
+        </script>
+    }
+}

@@ -1,0 +1,2 @@
+namespace SaucyMVC.Models;
+public class Payment { public int Id{get;set;} public int UserId{get;set;} public User? User{get;set;} public int? OrderId{get;set;} public Order? Order{get;set;} public int? ReservationId{get;set;} public Reservation? Reservation{get;set;} public decimal Amount{get;set;} public string Method{get;set;}="Cash"; public string Status{get;set;}="Pending"; public string? ReferenceNumber{get;set;} public DateTime CreatedAt{get;set;}=DateTime.Now; }

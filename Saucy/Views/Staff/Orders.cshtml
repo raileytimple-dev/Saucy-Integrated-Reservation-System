@@ -1,0 +1,96 @@
+@model IEnumerable<Order>
+@{
+    Layout = "_StaffLayout";
+    ViewData["Title"] = "Active Orders";
+    var selectedStatus = ViewBag.Status as string;
+    var orders = Model.ToList();
+}
+
+<div class="admin-page-intro staff-page-intro">
+    <div><span>LIVE KITCHEN QUEUE</span><h1>Active orders</h1><p>Only confirmed and paid orders appear here. Work from the oldest order first.</p></div>
+    <a asp-action="History" class="btn btn-outline-dark"><i class="bi bi-clock-history"></i> View history</a>
+</div>
+
+<div class="order-live-sync staff-live-sync" data-live-order-queue data-endpoint="@Url.Action("OrderQueueVersion", "Staff")" data-version="@ViewBag.OrderQueueVersion" aria-live="polite">
+    <span><i></i><strong>Live kitchen queue</strong><small data-live-message>New paid orders and Admin changes appear within 2 seconds</small></span>
+    <button class="btn btn-sm btn-dark" data-live-refresh type="button" hidden><i class="bi bi-arrow-clockwise"></i> Refresh now</button>
+</div>
+
+<div class="staff-order-filters">
+    <a asp-action="Orders" class="@(string.IsNullOrWhiteSpace(selectedStatus) ? "active" : "")">All active <span>@((int)ViewBag.Confirmed + (int)ViewBag.Preparing + (int)ViewBag.Ready)</span></a>
+    <a asp-action="Orders" asp-route-status="Confirmed" class="@(selectedStatus == "Confirmed" ? "active" : "")">Confirmed <span>@ViewBag.Confirmed</span></a>
+    <a asp-action="Orders" asp-route-status="Preparing" class="@(selectedStatus == "Preparing" ? "active" : "")">Preparing <span>@ViewBag.Preparing</span></a>
+    <a asp-action="Orders" asp-route-status="Ready" class="@(selectedStatus == "Ready" ? "active" : "")">Ready <span>@ViewBag.Ready</span></a>
+</div>
+
+@if (!orders.Any())
+{
+    <div class="panel admin-empty-state staff-empty-state"><i class="bi bi-check2-circle"></i><strong>No active orders in this view</strong><p>The queue is clear. New confirmed orders will appear automatically.</p></div>
+}
+else
+{
+    <section class="staff-order-grid">
+        @foreach (var order in orders)
+        {
+            var table = order.Reservation?.DiningTable;
+            var nextStatus = order.Status == "Confirmed" ? "Preparing" : order.Status == "Preparing" ? "Ready" : "Completed";
+            var actionLabel = order.Status == "Confirmed" ? "Start preparing" : order.Status == "Preparing" ? "Mark as ready" : "Complete order";
+            var actionIcon = order.Status == "Confirmed" ? "bi-play-fill" : order.Status == "Preparing" ? "bi-bell-fill" : "bi-check-lg";
+            <article class="staff-order-card status-@order.Status.ToLowerInvariant()">
+                <header>
+                    <div><small>ORDER</small><h2>#@order.Id</h2><span>@order.OrderedAt.ToString("MMM d, h:mm tt")</span></div>
+                    <span class="admin-status-pill status-@order.Status.ToLowerInvariant()">@order.Status</span>
+                </header>
+                <div class="staff-order-customer"><i class="bi bi-person"></i><div><strong>@order.User?.FullName</strong><small>@order.OrderType</small></div></div>
+                <div class="staff-order-destination">
+                    @if (table != null)
+                    {
+                        <i class="bi bi-grid-3x3-gap-fill"></i><div><small>SERVE TO</small><strong>@table.TableNumber</strong><span>Party of @order.Reservation!.GuestCount · @table.Capacity-seat table</span></div>
+                    }
+                    else if (order.OrderType == "Takeout")
+                    {
+                        <i class="bi bi-bag-check-fill"></i><div><small>HANDOFF</small><strong>Takeout counter</strong><span>Pack all items for collection</span></div>
+                    }
+                    else
+                    {
+                        <i class="bi bi-shop"></i><div><small>SERVE TO</small><strong>Dine-in walk-in</strong><span>Confirm the table at the counter</span></div>
+                    }
+                </div>
+                <div class="staff-order-items">
+                    <small>PREPARE</small>
+                    @foreach (var item in order.Items)
+                    {
+                        <div><b>@item.Quantity</b><span><strong>@item.MenuItem?.Name</strong>@if (item.Sauce1Name != null) { <small><i class="bi bi-droplet-fill"></i> @item.Sauce1Name + @item.Sauce2Name</small> }</span></div>
+                    }
+                </div>
+                @if (order.CancellationRequestStatus == "Pending")
+                {
+                    <div class="staff-cancellation-pending"><i class="bi bi-hourglass-split"></i><div><strong>Waiting for Admin decision</strong><p>@order.CancellationReason</p></div></div>
+                }
+                <footer>
+                    <div><small>ORDER TOTAL</small><strong>&#8369;@order.TotalAmount.ToString("0.00")</strong></div>
+                    @if (order.CancellationRequestStatus == "Pending")
+                    {
+                        <button class="btn btn-secondary" disabled><i class="bi bi-pause-fill"></i> Preparation paused</button>
+                    }
+                    else
+                    {
+                        <form asp-action="SetOrderStatus" method="post"><input type="hidden" name="id" value="@order.Id" /><input type="hidden" name="status" value="@nextStatus" /><button class="btn btn-success"><i class="bi @actionIcon"></i> @actionLabel</button></form>
+                    }
+                </footer>
+                <div class="staff-order-secondary">
+                    <details class="order-audit-timeline">
+                        <summary><i class="bi bi-clock-history"></i> View activity</summary>
+                        <ol>@foreach (var entry in order.StatusHistory.OrderByDescending(entry => entry.ChangedAt).Take(6)) { <li><span></span><div><strong>@entry.Action@if (entry.FromStatus != entry.ToStatus) { <text>: @entry.ToStatus</text> }</strong><small>@entry.ChangedAt.ToString("MMM d, h:mm tt") · @entry.ChangedByName</small>@if (!string.IsNullOrWhiteSpace(entry.Note)) { <p>@entry.Note</p> }</div></li> }</ol>
+                    </details>
+                    @if (order.CancellationRequestStatus != "Pending")
+                    {
+                        <details class="staff-order-more"><summary><i class="bi bi-exclamation-triangle"></i> Report an order problem</summary><form asp-action="RequestCancellation" method="post"><input type="hidden" name="id" value="@order.Id" /><label>Reason for cancellation request<textarea name="reason" rows="3" minlength="5" maxlength="500" placeholder="Explain why this order cannot continue..." required></textarea></label><button class="btn btn-sm btn-outline-danger"><i class="bi bi-send"></i> Send to Admin for decision</button></form></details>
+                    }
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@section Scripts { <script src="~/js/order-queue-live.js" asp-append-version="true"></script> }

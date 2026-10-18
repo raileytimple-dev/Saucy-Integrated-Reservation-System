@@ -1,0 +1,122 @@
+@model Reservation
+@{
+    ViewData["Title"] = "Waiting for Confirmation";
+    var canContinue = (ViewBag.CanContinue as bool?) == true;
+    var terminal = Model.Status is "Declined" or "Cancelled" or "No-show" or "Expired";
+    var holdMinutes = ViewBag.HoldMinutes as int? ?? 15;
+}
+
+<section class="confirmation-wait-page">
+    <div class="container-xl">
+        <nav class="checkout-progress" aria-label="Checkout progress">
+            <span class="complete"><i class="bi bi-check-lg"></i><b>Cart</b><small>Food selected</small></span>
+            <i class="bi bi-chevron-right"></i>
+            <span class="current"><em>2</em><b>Confirmation</b><small>Admin review</small></span>
+            <i class="bi bi-chevron-right"></i>
+            <span><em>3</em><b>Payment</b><small>Unlocks when confirmed</small></span>
+        </nav>
+
+        <div class="confirmation-wait-card" data-status="@Model.Status">
+            <div class="confirmation-wait-visual @(terminal ? "terminal" : Model.Status == "Confirmed" ? "confirmed" : "")" id="statusVisual">
+                <span class="confirmation-pulse"><i class="bi @(terminal ? "bi-x-lg" : Model.Status == "Confirmed" ? "bi-check-lg" : "bi-hourglass-split")"></i></span>
+                <small>RESERVATION #@Model.Id</small>
+                <h1 id="statusHeading">@(terminal ? $"Reservation {Model.Status.ToLowerInvariant()}" : Model.Status == "Confirmed" ? "Your table is confirmed" : "Waiting for admin confirmation")</h1>
+                <p id="statusMessage">@(Model.Status == "Expired" ? "The temporary table hold ended before confirmation. Choose a table again to continue." : terminal ? "This table request cannot continue to payment." : Model.Status == "Confirmed" ? "You are being redirected to payment." : $"This table is held for {holdMinutes} minutes while Admin reviews it. Payment opens automatically after confirmation.")</p>
+                @if (!terminal && Model.Status != "Confirmed")
+                {
+                    <div class="confirmation-live"><span></span> <b id="holdCountdown">Temporary hold active</b> · checking every 5 seconds</div>
+                }
+            </div>
+
+            <aside class="confirmation-reservation-summary">
+                <div><small>SELECTED TABLE</small><strong>@Model.DiningTable?.TableNumber</strong><span>@Model.DiningTable?.Capacity-seat capacity</span></div>
+                <div><small>PARTY</small><strong>@Model.GuestCount</strong><span>people</span></div>
+                <div><small>SCHEDULE</small><strong>@Model.ReservationDate.ToString("MMM d")</strong><span>@Model.ReservationDate.ToString("h:mm tt")</span></div>
+                <div><small>STATUS</small><strong id="statusLabel">@Model.Status</strong><span>@(Model.Status == "Pending" ? "Automatically expires if not confirmed" : "Automatically managed")</span></div>
+            </aside>
+
+            <div class="confirmation-actions">
+                <form asp-action="FinalizeCheckout" method="post" id="finalizeCheckoutForm">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button class="btn btn-warning btn-lg fw-semibold" id="continuePaymentButton" hidden="@(!canContinue)">Continue to payment <i class="bi bi-arrow-right"></i></button>
+                </form>
+                @if (terminal)
+                {
+                    <a asp-action="Create" asp-route-checkout="true" class="btn btn-warning">Choose another table</a>
+                }
+                <a asp-controller="Cart" asp-action="Index" class="btn btn-outline-dark">Back to cart</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const initialStatus = '@Model.Status';
+            const endpoint = '@Url.Action("ConfirmationStatus", "Reservations", new { id = Model.Id })';
+            const form = document.getElementById('finalizeCheckoutForm');
+            const button = document.getElementById('continuePaymentButton');
+            const heading = document.getElementById('statusHeading');
+            const message = document.getElementById('statusMessage');
+            const label = document.getElementById('statusLabel');
+            const visual = document.getElementById('statusVisual');
+            const countdown = document.getElementById('holdCountdown');
+            let holdExpiresAt = '@(Model.HoldExpiresAt?.ToString("O") ?? "")';
+            let redirecting = false;
+
+            function updateCountdown() {
+                if (!countdown || !holdExpiresAt) return;
+                const remaining = new Date(holdExpiresAt).getTime() - Date.now();
+                if (remaining <= 0) {
+                    countdown.textContent = 'Hold ending now';
+                    return;
+                }
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                countdown.textContent = `Hold expires in ${minutes}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            function continueToPayment() {
+                if (redirecting) return;
+                redirecting = true;
+                button.hidden = false;
+                heading.textContent = 'Your table is confirmed';
+                message.textContent = 'Redirecting you to payment now...';
+                label.textContent = 'Confirmed';
+                visual.classList.add('confirmed');
+                setTimeout(() => form.requestSubmit(), 900);
+            }
+
+            if (initialStatus === 'Confirmed' && !button.hidden) {
+                continueToPayment();
+                return;
+            }
+            if (['Declined', 'Cancelled', 'No-show', 'Expired'].includes(initialStatus)) return;
+
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+
+            const poll = async () => {
+                try {
+                    const response = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) return;
+                    const result = await response.json();
+                    label.textContent = result.status;
+                    if (result.holdExpiresAt) holdExpiresAt = result.holdExpiresAt;
+                    if (result.status === 'Confirmed' && result.canContinue) {
+                        continueToPayment();
+                        return;
+                    }
+                    if (['Declined', 'Cancelled', 'No-show', 'Expired'].includes(result.status)) {
+                        window.location.reload();
+                        return;
+                    }
+                } finally {
+                    if (!redirecting) setTimeout(poll, 5000);
+                }
+            };
+            setTimeout(poll, 5000);
+        })();
+    </script>
+}

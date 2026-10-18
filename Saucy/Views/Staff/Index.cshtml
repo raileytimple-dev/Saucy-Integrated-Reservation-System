@@ -1,0 +1,26 @@
+@{
+    Layout = "_StaffLayout";
+    ViewData["Title"] = "Staff Home";
+}
+
+<section class="operations-hero staff-operations-hero">
+    <div><span>KITCHEN &amp; COUNTER WORKSPACE</span><h1>Prepare confirmed orders.</h1><p>Your job is simple: start the order, mark it ready, then complete it after it is served or collected.</p></div>
+    <a asp-action="Orders" class="btn btn-light btn-lg"><i class="bi bi-receipt-cutoff"></i> Open active orders</a>
+</section>
+
+<section class="staff-queue-stats">
+    <a asp-action="Orders" asp-route-status="Confirmed"><i class="bi bi-inbox"></i><span><strong>@ViewBag.Confirmed</strong><small>Waiting to start</small></span></a>
+    <a asp-action="Orders" asp-route-status="Preparing"><i class="bi bi-fire"></i><span><strong>@ViewBag.Preparing</strong><small>Being prepared</small></span></a>
+    <a asp-action="Orders" asp-route-status="Ready"><i class="bi bi-bell"></i><span><strong>@ViewBag.Ready</strong><small>Ready to serve</small></span></a>
+    <a asp-action="History"><i class="bi bi-check2-circle"></i><span><strong>@ViewBag.CompletedToday</strong><small>Completed today</small></span></a>
+</section>
+
+<section class="panel staff-workflow-guide">
+    <div class="section-title-row"><div><small>YOUR WORKFLOW</small><h2>One action at a time</h2><p>The button on every order automatically shows the correct next step.</p></div></div>
+    <div class="staff-workflow-steps">
+        <div><span>1</span><i class="bi bi-play-circle"></i><strong>Start preparing</strong><small>Use this when the kitchen begins the order.</small></div>
+        <div><span>2</span><i class="bi bi-bell"></i><strong>Mark ready</strong><small>Use this when every item is complete.</small></div>
+        <div><span>3</span><i class="bi bi-check-circle"></i><strong>Complete order</strong><small>Use this after serving or handing over the meal.</small></div>
+    </div>
+    <div class="staff-boundary-note"><i class="bi bi-info-circle-fill"></i><div><strong>When should you contact an Admin?</strong><p>Contact an Admin for unpaid orders, reservation changes, refunds, menu availability or account concerns.</p></div></div>
+</section>

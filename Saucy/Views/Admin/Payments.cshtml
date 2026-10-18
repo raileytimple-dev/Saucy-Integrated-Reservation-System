@@ -1,0 +1,44 @@
+@model IEnumerable<Payment>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Track Payments";
+    var selectedStatus = ViewBag.Status as string;
+}
+
+<div class="admin-page-intro">
+    <div><span>PAYMENT MONITORING</span><h1>Cash and QR payments</h1><p>QR payments are recorded online. Confirm cash payments after the customer settles at the counter.</p></div>
+</div>
+
+<div class="panel">
+    <div class="filter-row"><a asp-action="Payments" class="@(string.IsNullOrWhiteSpace(selectedStatus) ? "active" : "")">All</a><a asp-action="Payments" asp-route-status="Pending" class="@(selectedStatus == "Pending" ? "active" : "")">Cash pending</a><a asp-action="Payments" asp-route-status="Paid" class="@(selectedStatus == "Paid" ? "active" : "")">Paid</a></div>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead><tr><th>Payment</th><th>Customer</th><th>Order</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+            <tbody>
+                @foreach (var payment in Model)
+                {
+                    <tr>
+                        <td><strong>#@payment.Id</strong></td>
+                        <td>@payment.User?.FullName</td>
+                        <td>#@payment.OrderId</td>
+                        <td><strong>&#8369;@payment.Amount.ToString("0.00")</strong></td>
+                        <td>@payment.Method</td>
+                        <td>@(string.IsNullOrWhiteSpace(payment.ReferenceNumber) ? "—" : payment.ReferenceNumber)</td>
+                        <td><span class="admin-status-pill status-@payment.Status.ToLowerInvariant()">@payment.Status</span></td>
+                        <td>@payment.CreatedAt.ToString("MMM d, yyyy h:mm tt")</td>
+                        <td>
+                            @if (payment.Status == "Pending" && payment.Method == "Cash")
+                            {
+                                <form asp-action="MarkPaymentPaid" method="post"><input type="hidden" name="id" value="@payment.Id" /><button class="btn btn-sm btn-success"><i class="bi bi-cash-coin"></i> Mark paid</button></form>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Recorded</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

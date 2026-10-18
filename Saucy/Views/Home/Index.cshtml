@@ -1,0 +1,111 @@
+@{
+    ViewData["Title"] = "Home";
+    var featured = ViewBag.Featured as IEnumerable<MenuItem> ?? Enumerable.Empty<MenuItem>();
+    var isLoggedIn = Context.Session.GetInt32("UserId").HasValue;
+}
+
+<section class="home-hero">
+    <div class="container-xl home-hero-grid">
+        <div class="home-hero-copy">
+            <span class="eyebrow eyebrow-light">Saucy Herbs Cuisine</span>
+            <h1>Comfort food with a little more <span>sauce.</span></h1>
+            <p>Fresh, familiar favorites made for sharing. Browse the menu, reserve your table, and order everything in one place.</p>
+            <div class="hero-actions">
+                <a class="btn btn-warning btn-lg fw-semibold" asp-controller="Menu" asp-action="Index">Explore the Menu</a>
+                <a class="btn btn-outline-light btn-lg" asp-controller="Reservations" asp-action="Create">Reserve a Table</a>
+            </div>
+            <div class="hero-highlights" aria-label="Dining options">
+                <span><i class="bi bi-check-circle-fill"></i> Dine in</span>
+                <span><i class="bi bi-check-circle-fill"></i> Takeout</span>
+                <span><i class="bi bi-check-circle-fill"></i> Easy reservations</span>
+            </div>
+        </div>
+        <div class="home-hero-visual" aria-hidden="true">
+            <div class="hero-dish">
+                <img src="~/legacy/FamousOfferings/FOPBR.png" alt="" />
+            </div>
+            <div class="hero-note">
+                <i class="bi bi-stars"></i>
+                <div><strong>House favorite</strong><span>Pork Bacon Ribs</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="service-strip">
+    <div class="container-xl service-strip-grid">
+        <div><i class="bi bi-cup-hot"></i><span><strong>Made fresh</strong><small>Prepared when you order</small></span></div>
+        <div><i class="bi bi-calendar2-check"></i><span><strong>Simple booking</strong><small>Reserve your table online</small></span></div>
+        <div><i class="bi bi-bag-check"></i><span><strong>Easy tracking</strong><small>Follow your order progress</small></span></div>
+    </div>
+</section>
+
+<section class="section-pad featured-section">
+    <div class="container-xl">
+        <div class="section-heading">
+            <span class="eyebrow">Customer favorites</span>
+            <h2>Famous Offerings</h2>
+            <p>A taste of the dishes our guests come back for.</p>
+        </div>
+        <div class="row g-4 justify-content-center">
+            @foreach (var item in featured)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <article class="food-card">
+                        <div class="food-card-media">
+                            <img src="@(item.ImagePath ?? "/legacy/Images/Icon.png")" alt="@item.Name" onerror="this.src='/legacy/Images/Icon.png'" />
+                            <span class="food-card-badge">@item.Category</span>
+                        </div>
+                        <div class="body">
+                            <div class="food-card-heading">
+                                <h3>@item.Name</h3>
+                                <span class="price">&#8369;@item.Price.ToString("0.00")</span>
+                            </div>
+                            <p>@item.Description</p>
+                            @if (isLoggedIn)
+                            {
+                                <form asp-controller="Cart" asp-action="Add" method="post">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="returnUrl" value="/" />
+                                    <button class="btn btn-dark w-100"><i class="bi bi-cart-plus"></i> Add to Cart</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a class="btn btn-outline-dark w-100 menu-login-cta" asp-controller="Account" asp-action="Login" asp-route-returnUrl="/"><i class="bi bi-person-lock"></i> Log in to order</a>
+                            }
+                        </div>
+                    </article>
+                </div>
+            }
+        </div>
+        <div class="text-center mt-5">
+            <a class="btn btn-outline-dark btn-lg" asp-controller="Menu" asp-action="Index">See the Full Menu <i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+    </div>
+</section>
+
+<section class="section-pad dining-section">
+    <div class="container-xl">
+        <div class="dining-panel">
+            <div class="dining-copy">
+                <span class="eyebrow">Plan your visit</span>
+                <h2>Dining made easier.</h2>
+                <p>Book a table before you arrive or keep an eye on your meal from preparation to pickup.</p>
+                <a class="btn btn-warning btn-lg fw-semibold" asp-controller="Reservations" asp-action="Create">Make a Reservation</a>
+            </div>
+            <div class="dining-actions">
+                <a asp-controller="Reservations" asp-action="Create">
+                    <i class="bi bi-calendar-check"></i>
+                    <span><strong>Reserve a table</strong><small>Choose your preferred date and time</small></span>
+                    <i class="bi bi-arrow-up-right"></i>
+                </a>
+                <a asp-controller="Orders" asp-action="Track">
+                    <i class="bi bi-bag-check"></i>
+                    <span><strong>Track an order</strong><small>See the latest status of your meal</small></span>
+                    <i class="bi bi-arrow-up-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>

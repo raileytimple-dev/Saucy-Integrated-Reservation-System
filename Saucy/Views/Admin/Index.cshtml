@@ -1,0 +1,58 @@
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Dashboard";
+}
+
+<section class="operations-hero admin-operations-hero">
+    <div>
+        <span>RESTAURANT CONTROL CENTER</span>
+        <h1>Run Saucy with a clear workflow.</h1>
+        <p>Review requests and payments here. Staff members only receive confirmed orders that are ready for kitchen service.</p>
+    </div>
+    <div class="operations-hero-total"><small>TODAY'S RECORDED SALES</small><strong>&#8369;@(((decimal)ViewBag.Today).ToString("N2"))</strong><span>All paid sales: &#8369;@(((decimal)ViewBag.Revenue).ToString("N2"))</span></div>
+</section>
+
+<section class="attention-grid" aria-label="Items requiring attention">
+    <a asp-action="Reservations" asp-route-status="Pending" class="attention-card urgent">
+        <i class="bi bi-calendar2-check"></i><span><small>REVIEW</small><strong>@ViewBag.PendingReservations pending reservations</strong><em>Confirm a table request or decline it</em></span><i class="bi bi-arrow-right"></i>
+    </a>
+    <a asp-action="Payments" asp-route-status="Pending" class="attention-card warning">
+        <i class="bi bi-cash-coin"></i><span><small>COLLECT</small><strong>@ViewBag.PendingPayments pending payments</strong><em>Verify cash before kitchen preparation</em></span><i class="bi bi-arrow-right"></i>
+    </a>
+    <a asp-action="Orders" class="attention-card active-work">
+        <i class="bi bi-fire"></i><span><small>MONITOR</small><strong>@ViewBag.ActiveOrders active orders</strong><em>Staff is preparing these orders</em></span><i class="bi bi-arrow-right"></i>
+    </a>
+    <a asp-action="Refunds" asp-route-status="Pending" class="attention-card neutral">
+        <i class="bi bi-arrow-counterclockwise"></i><span><small>DECIDE</small><strong>@ViewBag.PendingRefunds refund requests</strong><em>Review customer refund reasons</em></span><i class="bi bi-arrow-right"></i>
+    </a>
+    <a asp-action="Orders" asp-route-attention="cancellation" class="attention-card cancellation-work">
+        <i class="bi bi-exclamation-octagon"></i><span><small>ORDER PROBLEMS</small><strong>@ViewBag.PendingCancellations cancellation reports</strong><em>Approve or return the order to Staff</em></span><i class="bi bi-arrow-right"></i>
+    </a>
+</section>
+
+<section class="panel workflow-panel">
+    <div class="section-title-row"><div><small>HOW THE SYSTEM WORKS</small><h2>From customer order to completion</h2><p>Each workspace has a separate responsibility, preventing accidental changes.</p></div><a asp-controller="Staff" asp-action="Index" class="btn btn-outline-dark"><i class="bi bi-box-arrow-up-right"></i> Preview staff workflow</a></div>
+    <div class="system-flow">
+        <div><span>1</span><i class="bi bi-bag-check"></i><strong>Customer orders</strong><small>Dine-in customers reserve a table; takeout customers continue to payment.</small></div>
+        <i class="bi bi-chevron-right"></i>
+        <div><span>2</span><i class="bi bi-shield-check"></i><strong>Admin verifies</strong><small>Confirm reservations, cash payments, refunds and business setup.</small></div>
+        <i class="bi bi-chevron-right"></i>
+        <div><span>3</span><i class="bi bi-fire"></i><strong>Staff prepares</strong><small>Confirmed orders move through Preparing, Ready and Completed.</small></div>
+        <i class="bi bi-chevron-right"></i>
+        <div><span>4</span><i class="bi bi-journal-check"></i><strong>System records</strong><small>Paid orders automatically appear in transaction and order history.</small></div>
+    </div>
+</section>
+
+<section class="dashboard-role-grid">
+    <article class="panel role-explanation admin-role">
+        <header><i class="bi bi-shield-lock"></i><div><small>ADMINISTRATOR</small><h2>Your responsibilities</h2></div></header>
+        <ul><li><i class="bi bi-check2"></i> Approve reservations and manage dining tables</li><li><i class="bi bi-check2"></i> Confirm cash payments and refund decisions</li><li><i class="bi bi-check2"></i> Maintain menu, sauces and user accounts</li><li><i class="bi bi-check2"></i> Monitor orders and correct exceptional cases</li></ul>
+        <a asp-action="Accounts" class="btn btn-dark">Manage roles and accounts</a>
+    </article>
+    <article class="panel role-explanation staff-role">
+        <header><i class="bi bi-person-workspace"></i><div><small>STAFF MEMBER</small><h2>Why the staff account exists</h2></div></header>
+        <p>Staff accounts are for the kitchen or counter team. They see only paid, active orders and move each order through its preparation stages.</p>
+        <div class="staff-status-line"><span>Confirmed</span><i class="bi bi-arrow-right"></i><span>Preparing</span><i class="bi bi-arrow-right"></i><span>Ready</span><i class="bi bi-arrow-right"></i><span>Completed</span></div>
+        <small class="role-boundary"><i class="bi bi-lock"></i> Staff cannot change accounts, payments, menu items or reservations.</small>
+    </article>
+</section>

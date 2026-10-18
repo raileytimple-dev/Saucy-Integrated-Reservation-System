@@ -1,0 +1,96 @@
+@model IEnumerable<Reservation>
+@{
+    ViewData["Title"] = "My Reservations";
+    var reservations = Model.ToList();
+    var upcoming = reservations.Count(r => r.ReservationDate >= DateTime.Now && r.Status is "Pending" or "Accepted" or "Confirmed" or "Seated");
+    var checkoutReservationId = ViewBag.CheckoutReservationId as int?;
+    var hasCheckoutCart = (ViewBag.HasCheckoutCart as bool?) == true;
+}
+
+<section class="reservation-list-page section-pad">
+    <div class="container-xl">
+        <header class="reservation-list-heading">
+            <div>
+                <span class="eyebrow">Your dining plans</span>
+                <h1>My reservations</h1>
+                <p>@upcoming upcoming · @reservations.Count total reservation@(reservations.Count == 1 ? "" : "s")</p>
+            </div>
+            <a class="btn btn-warning btn-lg fw-semibold" asp-action="Create"><i class="bi bi-plus-lg"></i> Reserve another table</a>
+        </header>
+
+        @if (!reservations.Any())
+        {
+            <div class="reservation-empty-state">
+                <i class="bi bi-calendar2-heart"></i>
+                <h2>No reservation yet</h2>
+                <p>View table capacities and choose the best available table for your first visit.</p>
+                <a class="btn btn-warning" asp-action="Create">Choose a table</a>
+            </div>
+        }
+        else
+        {
+            <div class="reservation-list-grid">
+                @foreach (var reservation in reservations)
+                {
+                    var table = reservation.DiningTable;
+                    var isOpen = reservation.Status is "Pending" or "Accepted" or "Confirmed";
+                    <article class="reservation-list-card">
+                        <div class="reservation-date-block">
+                            <span>@reservation.ReservationDate.ToString("MMM").ToUpperInvariant()</span>
+                            <strong>@reservation.ReservationDate.Day</strong>
+                            <small>@reservation.ReservationDate.ToString("yyyy")</small>
+                        </div>
+                        <div class="reservation-card-content">
+                            <div class="reservation-card-topline">
+                                <span class="status-badge status-@reservation.Status">@reservation.Status</span>
+                                <small>Request #@reservation.Id</small>
+                            </div>
+                            <h2>@reservation.ReservationDate.ToString("dddd, h:mm tt")</h2>
+                            <div class="reservation-facts">
+                                <span><i class="bi bi-grid-3x3-gap"></i><small>Selected table</small><strong>@(table?.TableNumber ?? "Unassigned")</strong></span>
+                                <span><i class="bi bi-person-check"></i><small>Table capacity</small><strong>@(table == null ? "—" : $"{table.Capacity} seats")</strong></span>
+                                <span><i class="bi bi-people"></i><small>Your party</small><strong>@reservation.GuestCount people</strong></span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(reservation.Notes))
+                            {
+                                <p class="reservation-card-note"><i class="bi bi-chat-left-text"></i> @reservation.Notes</p>
+                            }
+                            <div class="reservation-card-footer">
+                                @if (reservation.Status == "Pending")
+                                {
+                                    <span><i class="bi bi-hourglass-split"></i> Held until @(reservation.HoldExpiresAt?.ToString("h:mm tt") ?? "processing")</span>
+                                }
+                                else if (reservation.Status is "Confirmed" or "Accepted")
+                                {
+                                    <span class="confirmed"><i class="bi bi-check-circle-fill"></i> Your table is confirmed</span>
+                                }
+                                else if (reservation.Status == "Seated")
+                                {
+                                    <span class="confirmed"><i class="bi bi-person-check-fill"></i> Seated at @table?.TableNumber</span>
+                                }
+                                else if (reservation.Status == "Expired")
+                                {
+                                    <span><i class="bi bi-clock-history"></i> Temporary hold expired; the table reopened</span>
+                                }
+                                else
+                                {
+                                    <span><i class="bi bi-info-circle"></i> Reservation @reservation.Status.ToLowerInvariant()</span>
+                                }
+                                <div class="reservation-card-actions">
+                                    @if (reservation.Status == "Confirmed" && hasCheckoutCart && checkoutReservationId == reservation.Id)
+                                    {
+                                        <form method="post" asp-action="FinalizeCheckout"><input type="hidden" name="id" value="@reservation.Id" /><button class="btn btn-sm btn-warning fw-semibold">Continue to payment</button></form>
+                                    }
+                                    @if (isOpen)
+                                    {
+                                        <form method="post" asp-action="Cancel"><input type="hidden" name="id" value="@reservation.Id" /><button class="btn btn-sm btn-outline-danger">Cancel</button></form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</section>

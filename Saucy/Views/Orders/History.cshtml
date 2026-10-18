@@ -1,0 +1,108 @@
+@model IEnumerable<Order>
+@{
+    ViewData["Title"] = "Order History";
+    var isGuestPreview = (ViewBag.IsGuestPreview as bool?) == true;
+}
+
+@if (isGuestPreview)
+{
+    <section class="guest-feature-page history-preview-page">
+        <div class="container-xl guest-feature-grid">
+            <div class="guest-feature-copy">
+                <span class="eyebrow">Transparent dining history</span>
+                <h1>Every order and table, easy to find.</h1>
+                <p>Review your items, total, status, and the exact table connected to every dine-in order—including its seating capacity.</p>
+                <div class="guest-feature-actions">
+                    <a class="btn btn-warning btn-lg fw-semibold" asp-controller="Account" asp-action="Login" asp-route-returnUrl="/Orders/History">Log in to view history</a>
+                    <a class="btn btn-outline-dark btn-lg" asp-controller="Account" asp-action="Register" asp-route-returnUrl="/Orders/History">Create account</a>
+                </div>
+            </div>
+            <div class="preview-window history-preview-card" aria-label="Order history preview">
+                <div class="preview-window-bar"><span></span><span></span><span></span><small>Order history preview</small></div>
+                <div class="preview-window-body">
+                    <div class="history-sample"><div><small>ORDER #1038</small><strong>Chicken Fries × 1</strong><span>October 15, 2026</span></div><div><em>Completed</em><strong>&#8369;110.00</strong></div></div>
+                    <div class="history-preview-table"><i class="bi bi-grid-3x3-gap"></i><span><small>DINE-IN TABLE</small><strong>T03 · 4-seat capacity</strong></span><i class="bi bi-check-circle-fill"></i></div>
+                    <div class="history-sample"><div><small>ORDER #1027</small><strong>Mushroom Alfredo × 2</strong><span>October 8, 2026</span></div><div><em>Completed</em><strong>&#8369;280.00</strong></div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <section class="order-history-page section-pad">
+        <div class="container-xl">
+            <header class="order-history-heading">
+                <div><span class="eyebrow">Receipts &amp; seating</span><h1>Your order history</h1><p>Complete details for every Saucy order and dine-in table.</p></div>
+                <a asp-controller="Menu" asp-action="Index" class="btn btn-warning btn-lg fw-semibold">Order again</a>
+            </header>
+
+            @if (!Model.Any())
+            {
+                <div class="reservation-empty-state"><i class="bi bi-receipt"></i><h2>No previous orders yet</h2><p>Your completed and active orders will appear here.</p><a asp-controller="Menu" asp-action="Index" class="btn btn-warning">Browse the menu</a></div>
+            }
+            else
+            {
+                <div class="order-history-list">
+                    @foreach (var order in Model)
+                    {
+                        var table = order.Reservation?.DiningTable;
+                        var hasLinkedTable = order.OrderType == "Dine-in" && table != null;
+                        <article class="order-history-card">
+                            <div class="order-history-main">
+                                <div class="order-history-topline">
+                                    <div><small>ORDER #@order.Id</small><h2>@order.OrderedAt.ToString("MMMM d, yyyy")</h2><span>@order.OrderedAt.ToString("h:mm tt") · @order.OrderType</span></div>
+                                    <div><span class="status-badge status-@order.Status">@order.Status</span><strong>&#8369;@order.TotalAmount.ToString("0.00")</strong></div>
+                                </div>
+                                <div class="order-history-items">
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <span><b>@item.Quantity×</b> @item.MenuItem?.Name @if (item.Sauce1Name != null) { <em class="order-line-sauces"><i class="bi bi-droplet-fill"></i> @item.Sauce1Name + @item.Sauce2Name</em> } <small>&#8369;@((item.Quantity * item.UnitPrice).ToString("0.00"))</small></span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(order.Notes))
+                                {
+                                    <p class="order-history-note"><i class="bi bi-chat-left-text"></i> @order.Notes</p>
+                                }
+                                @if (order.StatusHistory.Any())
+                                {
+                                    <details class="customer-order-timeline history-timeline">
+                                        <summary><i class="bi bi-clock-history"></i> View status timeline</summary>
+                                        <ol>@foreach (var entry in order.StatusHistory.OrderByDescending(entry => entry.ChangedAt)) { <li><span></span><div><strong>@entry.Action@if (entry.FromStatus != entry.ToStatus) { <text>: @entry.ToStatus</text> }</strong><small>@entry.ChangedAt.ToString("MMM d, h:mm tt") · @(entry.ChangedByRole == "Customer" ? "You" : $"Saucy {entry.ChangedByRole.ToLowerInvariant()}")</small></div></li> }</ol>
+                                    </details>
+                                }
+                                @if (order.Status == "Completed")
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#refund-@order.Id">Request refund</button>
+                                    <div class="collapse mt-2" id="refund-@order.Id"><form asp-controller="Payments" asp-action="RequestRefund" method="post" class="d-flex gap-2"><input type="hidden" name="orderId" value="@order.Id" /><input class="form-control" name="description" placeholder="Reason for refund" required /><button class="btn btn-outline-danger">Submit</button></form></div>
+                                }
+                            </div>
+                            <aside class="order-table-proof @(hasLinkedTable ? "linked" : "")">
+                                <span class="order-table-icon"><i class="bi @(hasLinkedTable ? "bi-grid-3x3-gap-fill" : "bi-shop")"></i></span>
+                                @if (hasLinkedTable)
+                                {
+                                    <small>@(order.Reservation!.Status == "Confirmed" ? "CONFIRMED DINE-IN TABLE" : "DINE-IN TABLE REQUEST")</small>
+                                    <strong>@table!.TableNumber</strong>
+                                    <p><i class="bi bi-people"></i> @table.Capacity-seat capacity</p>
+                                    <span class="table-proof-party">Party of @order.Reservation.GuestCount · @order.Reservation.Status</span>
+                                }
+                                else if (order.OrderType == "Dine-in")
+                                {
+                                    <small>DINE-IN SEATING</small>
+                                    <strong>Walk-in</strong>
+                                    <p>No reservation was linked to this order.</p>
+                                }
+                                else
+                                {
+                                    <small>ORDER TYPE</small>
+                                    <strong>Takeout</strong>
+                                    <p>No dining table required.</p>
+                                }
+                            </aside>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}

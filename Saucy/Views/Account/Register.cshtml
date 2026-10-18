@@ -1,0 +1,90 @@
+@model SaucyMVC.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "Create Account";
+    var returnUrl = ViewBag.ReturnUrl as string;
+}
+
+<section class="account-page">
+    <div class="container-xl account-shell account-shell-register">
+        <aside class="account-showcase">
+            <a class="account-back-link" asp-controller="Home" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Saucy</a>
+            <div class="account-showcase-copy">
+                <span class="account-kicker">Join the table</span>
+                <h1>Good food is better with an account.</h1>
+                <p>Create your free customer account and keep every Saucy experience organized in one place.</p>
+                <div class="account-benefits account-steps">
+                    <span><b>1</b><small><strong>Create your profile</strong>Your basic details keep reservations and orders connected.</small></span>
+                    <span><b>2</b><small><strong>Choose your favorites</strong>Browse the full menu and add meals to your cart.</small></span>
+                    <span><b>3</b><small><strong>Order or reserve</strong>Track food progress or manage your table booking.</small></span>
+                </div>
+            </div>
+            <div class="account-dish" aria-hidden="true"><img src="~/legacy/Pasta/PMA.png" alt="" /></div>
+        </aside>
+
+        <div class="account-panel">
+            <div class="account-form-wrap account-register-form">
+                <div class="account-form-heading">
+                    <span class="eyebrow">Customer registration</span>
+                    <h2>Create your account</h2>
+                    <p>It only takes a minute to get started.</p>
+                </div>
+
+                <form method="post" class="account-form">
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div asp-validation-summary="ModelOnly" class="account-validation"></div>
+
+                    <div class="account-form-row">
+                        <div class="account-form-group">
+                            <label asp-for="FullName">Full name</label>
+                            <div class="account-input"><i class="bi bi-person"></i><input asp-for="FullName" placeholder="Your full name" autocomplete="name" autofocus /></div>
+                            <span asp-validation-for="FullName" class="account-field-error"></span>
+                        </div>
+                        <div class="account-form-group">
+                            <label asp-for="PhoneNumber">Phone number <small>Optional</small></label>
+                            <div class="account-input"><i class="bi bi-phone"></i><input asp-for="PhoneNumber" placeholder="09XX XXX XXXX" autocomplete="tel" inputmode="tel" /></div>
+                            <span asp-validation-for="PhoneNumber" class="account-field-error"></span>
+                        </div>
+                    </div>
+
+                    <div class="account-form-group">
+                        <label asp-for="Email">Email address</label>
+                        <div class="account-input"><i class="bi bi-envelope"></i><input asp-for="Email" placeholder="you@example.com" autocomplete="email" /></div>
+                        <span asp-validation-for="Email" class="account-field-error"></span>
+                    </div>
+
+                    <div class="account-form-row">
+                        <div class="account-form-group">
+                            <label asp-for="Password"></label>
+                            <div class="account-input account-password-input"><i class="bi bi-lock"></i><input asp-for="Password" placeholder="At least 6 characters" autocomplete="new-password" /><button type="button" class="password-toggle" data-password-toggle="#Password" aria-label="Show password"><i class="bi bi-eye"></i></button></div>
+                            <span asp-validation-for="Password" class="account-field-error"></span>
+                        </div>
+                        <div class="account-form-group">
+                            <label asp-for="ConfirmPassword">Confirm password</label>
+                            <div class="account-input account-password-input"><i class="bi bi-shield-check"></i><input asp-for="ConfirmPassword" placeholder="Repeat your password" autocomplete="new-password" /><button type="button" class="password-toggle" data-password-toggle="#ConfirmPassword" aria-label="Show confirmed password"><i class="bi bi-eye"></i></button></div>
+                            <span asp-validation-for="ConfirmPassword" class="account-field-error"></span>
+                        </div>
+                    </div>
+
+                    <p class="account-terms">By creating an account, you agree to use Saucy's ordering and reservation services responsibly.</p>
+                    <button class="btn account-submit" type="submit">Create account <i class="bi bi-arrow-right"></i></button>
+                </form>
+
+                <div class="account-switch">Already have an account? <a asp-action="Login" asp-route-returnUrl="@returnUrl">Log in instead</a></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const input = document.querySelector(button.dataset.passwordToggle);
+                const reveal = input.type === 'password';
+                input.type = reveal ? 'text' : 'password';
+                button.innerHTML = reveal ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+                button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
+}

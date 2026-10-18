@@ -1,0 +1,118 @@
+@model Payment
+@{
+    ViewData["Title"] = "Payment";
+    var order = Model.Order;
+    var isDineIn = order?.OrderType == "Dine-in";
+    var table = Model.Reservation?.DiningTable;
+    var qrSelected = Model.Method == "QR Pay";
+}
+
+<section class="payment-page section-pad">
+    <div class="container-xl">
+        <nav class="checkout-progress" aria-label="Checkout progress">
+            <span class="complete"><i class="bi bi-check-lg"></i><b>Cart</b><small>Food selected</small></span>
+            <i class="bi bi-chevron-right"></i>
+            <span class="complete"><i class="bi bi-check-lg"></i><b>Reservation</b><small>@(isDineIn ? "Table confirmed" : "Not required")</small></span>
+            <i class="bi bi-chevron-right"></i>
+            <span class="current"><em>3</em><b>Payment</b><small>Cash or QR Pay</small></span>
+        </nav>
+
+        <header class="payment-page-heading">
+            <div><span class="eyebrow">Final checkout step</span><h1>Choose how to pay</h1><p>Review your order, then select cash at the counter or scan the QR code.</p></div>
+            <span class="payment-order-number">ORDER #@Model.OrderId</span>
+        </header>
+
+        <div class="payment-layout">
+            <aside class="payment-order-summary">
+                <div class="payment-summary-heading"><span><i class="bi bi-receipt-cutoff"></i></span><div><small>ORDER SUMMARY</small><h2>@(isDineIn ? "Dine-in order" : "Takeout order")</h2></div></div>
+
+                <div class="payment-item-list">
+                    @if (order != null)
+                    {
+                        @foreach (var item in order.Items)
+                        {
+                            <div><span><b>@item.Quantity×</b> @item.MenuItem?.Name @if (item.Sauce1Name != null) { <small class="order-line-sauces"><i class="bi bi-droplet-fill"></i> @item.Sauce1Name + @item.Sauce2Name</small> }</span><strong>&#8369;@((item.Quantity * item.UnitPrice).ToString("0.00"))</strong></div>
+                        }
+                    }
+                </div>
+
+                @if (isDineIn && table != null)
+                {
+                    <div class="payment-table-detail"><i class="bi bi-grid-3x3-gap-fill"></i><span><small>CONFIRMED TABLE</small><strong>@table.TableNumber · @table.Capacity-seat capacity</strong><em>Party of @Model.Reservation!.GuestCount · @Model.Reservation.Status</em></span></div>
+                }
+                else
+                {
+                    <div class="payment-table-detail"><i class="bi bi-bag-check-fill"></i><span><small>FULFILLMENT</small><strong>Takeout</strong><em>No table reservation required</em></span></div>
+                }
+
+                <div class="payment-total"><span>Amount due</span><strong>&#8369;@Model.Amount.ToString("0.00")</strong></div>
+                <p class="payment-summary-note"><i class="bi bi-shield-check"></i> Your order and reservation are linked under one order number.</p>
+            </aside>
+
+            <main class="payment-method-panel">
+                <div class="payment-method-heading"><span>Payment method</span><h2>Cash or QR Pay</h2><p>Select the option that is most convenient for you.</p></div>
+
+                <form method="post" id="paymentForm">
+                    <input type="hidden" name="id" value="@Model.OrderId" />
+                    <div asp-validation-summary="ModelOnly" class="reservation-validation"></div>
+
+                    <div class="payment-method-options">
+                        <label class="payment-method-card">
+                            <input type="radio" name="method" value="Cash" checked="@(!qrSelected)" />
+                            <span class="payment-method-icon cash"><i class="bi bi-cash-stack"></i></span>
+                            <span><strong>Cash</strong><small>Admin verifies before kitchen preparation</small></span>
+                            <em><i class="bi bi-check-lg"></i></em>
+                        </label>
+                        <label class="payment-method-card">
+                            <input type="radio" name="method" value="QR Pay" checked="@qrSelected" />
+                            <span class="payment-method-icon qr"><i class="bi bi-qr-code-scan"></i></span>
+                            <span><strong>QR Pay</strong><small>Reference submission confirms automatically</small></span>
+                            <em><i class="bi bi-check-lg"></i></em>
+                        </label>
+                    </div>
+
+                    <div class="cash-payment-panel" id="cashPanel">
+                        <i class="bi bi-shop-window"></i>
+                        <div><strong>Pay when you arrive</strong><p>Your order stays pending until Admin verifies &#8369;@Model.Amount.ToString("0.00") at the counter. Staff will receive it immediately after verification.</p></div>
+                    </div>
+
+                    <div class="qr-payment-panel" id="qrPanel" hidden>
+                        <div class="qr-code-wrap"><img src="~/legacy/Images/QRPAY.jpg" alt="Saucy QR payment code" /><span>Scan with your e-wallet</span></div>
+                        <div class="qr-payment-instructions">
+                            <ol><li>Scan the QR code using your e-wallet.</li><li>Pay exactly <strong>&#8369;@Model.Amount.ToString("0.00")</strong>.</li><li>Enter the transaction reference below.</li></ol>
+                            <label for="referenceNumber">Reference number</label>
+                            <div class="payment-reference-input"><i class="bi bi-hash"></i><input id="referenceNumber" name="referenceNumber" value="@Model.ReferenceNumber" placeholder="Example: 1234567890123" autocomplete="off" /></div>
+                            @Html.ValidationMessage("referenceNumber", new { @class = "payment-field-error" })
+                        </div>
+                    </div>
+
+                    <button class="payment-submit-button" type="submit"><span id="paymentButtonText">Choose cash payment</span><i class="bi bi-arrow-right"></i></button>
+                    <p class="payment-disclaimer"><i class="bi bi-lightning-charge"></i> A unique QR reference automatically confirms the order. Cash still requires counter verification.</p>
+                </form>
+            </main>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const choices = document.querySelectorAll('input[name="method"]');
+            const cashPanel = document.getElementById('cashPanel');
+            const qrPanel = document.getElementById('qrPanel');
+            const reference = document.getElementById('referenceNumber');
+            const buttonText = document.getElementById('paymentButtonText');
+
+            const sync = () => {
+                const qr = document.querySelector('input[name="method"]:checked')?.value === 'QR Pay';
+                cashPanel.hidden = qr;
+                qrPanel.hidden = !qr;
+                reference.required = qr;
+                buttonText.textContent = qr ? 'Confirm QR payment' : 'Choose cash payment';
+            };
+
+            choices.forEach(choice => choice.addEventListener('change', sync));
+            sync();
+        })();
+    </script>
+}

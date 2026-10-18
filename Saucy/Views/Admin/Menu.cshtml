@@ -1,0 +1,53 @@
+@model IEnumerable<MenuItem>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Update Menu";
+    var sauces = ViewBag.Sauces as IEnumerable<SauceOption> ?? Enumerable.Empty<SauceOption>();
+}
+
+<div class="admin-page-intro">
+    <div><span>MENU &amp; SAUCE CONTROL</span><h1>Kitchen availability</h1><p>Manage meals and today's sauce selection. Unavailable sauces remain visible to customers but cannot be selected.</p></div>
+</div>
+
+<section class="panel admin-menu-section">
+    <div class="admin-section-heading"><div><small>MEALS</small><h2>Add a menu item</h2></div></div>
+    <form asp-action="SaveMenuItem" method="post" class="row g-2 mb-4">
+        <input type="hidden" name="id" value="0" />
+        <div class="col-md-3"><input name="name" class="form-control" placeholder="Item name" required /></div>
+        <div class="col-md-2"><select name="category" class="form-select"><option>Famous Offerings</option><option>Pasta</option><option>Sides &amp; Drinks</option></select></div>
+        <div class="col-md-2"><input name="price" type="number" step="0.01" min="0" class="form-control" placeholder="Price" required /></div>
+        <div class="col-md-3"><input name="description" class="form-control" placeholder="Description" /></div>
+        <div class="col-md-2"><button class="btn btn-success w-100">Add meal</button></div>
+    </form>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td><strong>@item.Name</strong></td><td>@item.Category</td><td>&#8369;@item.Price.ToString("0.00")</td><td><span class="admin-status-pill @(item.IsAvailable ? "status-confirmed" : "status-cancelled")">@(item.IsAvailable ? "Available" : "Unavailable")</span></td>
+                        <td>
+                            <div class="d-flex gap-1"><button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#edit-@item.Id">Edit</button><form asp-action="ToggleMenuItem" method="post"><input type="hidden" name="id" value="@item.Id" /><button class="btn btn-sm @(item.IsAvailable ? "btn-outline-danger" : "btn-outline-success")">@(item.IsAvailable ? "Disable" : "Enable")</button></form></div>
+                            <div class="collapse mt-2" id="edit-@item.Id"><form asp-action="EditMenuItem" method="post" class="mini-form"><input type="hidden" name="id" value="@item.Id" /><input name="name" value="@item.Name" class="form-control form-control-sm" /><input name="category" value="@item.Category" class="form-control form-control-sm" /><input name="price" value="@item.Price" type="number" step="0.01" class="form-control form-control-sm" /><input name="description" value="@item.Description" class="form-control form-control-sm" /><button class="btn btn-sm btn-success">Save</button></form></div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel admin-menu-section sauce-inventory-section">
+    <div class="admin-section-heading"><div><small>FAMOUS OFFERINGS</small><h2>Sauce availability</h2><p>Customers must choose two available sauces. They may select the same sauce for both choices.</p></div><span>@sauces.Count(sauce => sauce.IsAvailable) available</span></div>
+    <div class="admin-sauce-grid">
+        @foreach (var sauce in sauces)
+        {
+            <article class="admin-sauce-card @(!sauce.IsAvailable ? "unavailable" : "")">
+                <div><img src="@sauce.ImagePath" alt="@sauce.Name sauce" /><span>@(sauce.IsAvailable ? "Available" : "Not available")</span></div>
+                <form asp-action="RenameSauce" method="post" class="admin-sauce-name"><input type="hidden" name="id" value="@sauce.Id" /><input name="name" value="@sauce.Name" maxlength="80" aria-label="Sauce name" /><button title="Save sauce name"><i class="bi bi-check-lg"></i></button></form>
+                <form asp-action="ToggleSauce" method="post"><input type="hidden" name="id" value="@sauce.Id" /><button class="btn btn-sm w-100 @(sauce.IsAvailable ? "btn-outline-danger" : "btn-success")">@(sauce.IsAvailable ? "Mark unavailable" : "Make available")</button></form>
+            </article>
+        }
+    </div>
+</section>
